@@ -1,15 +1,312 @@
---// SKUI Nexus Green Hub Library
---// Paste this as a ModuleScript or loadstring script
+--// Nexus Green SKUI Hub + Fused IconModule
+--// Draggable window, minimize button, close destroy, tab panel, element panel,
+--// transparent dark green UI, element scrolling, dropdown popup scroll + search,
+--// icon support for names like "home".
+
+local cloneref = (cloneref or clonereference or function(instance)
+	return instance
+end)
+
+local HttpService = cloneref(game:GetService("HttpService"))
+local Players = cloneref(game:GetService("Players"))
+local UserInputService = cloneref(game:GetService("UserInputService"))
+local TweenService = cloneref(game:GetService("TweenService"))
+local CoreGui = cloneref(game:GetService("CoreGui"))
+
+local LocalPlayer = Players.LocalPlayer
+
+local function Get(url)
+	local ok, result
+
+	if typeof(game.HttpGet) == "function" then
+		ok, result = pcall(function()
+			return game:HttpGet(url)
+		end)
+		if ok and result then
+			return result
+		end
+	end
+
+	ok, result = pcall(function()
+		return HttpService:GetAsync(url)
+	end)
+
+	if ok and result then
+		return result
+	end
+
+	return ""
+end
+
+local function safeLoadPack(url)
+	local src = Get(url)
+	if src == "" then
+		return {
+			Icons = {},
+			Spritesheets = {},
+		}
+	end
+
+	local fn, err = loadstring(src)
+	if not fn then
+		warn("Icon pack loadstring failed: " .. tostring(err))
+		return {
+			Icons = {},
+			Spritesheets = {},
+		}
+	end
+
+	local ok, result = pcall(fn)
+	if ok and type(result) == "table" then
+		result.Icons = result.Icons or {}
+		result.Spritesheets = result.Spritesheets or {}
+		return result
+	end
+
+	if ok and type(result) == "function" then
+		local ok2, result2 = pcall(result)
+		if ok2 and type(result2) == "table" then
+			result2.Icons = result2.Icons or {}
+			result2.Spritesheets = result2.Spritesheets or {}
+			return result2
+		end
+	end
+
+	return {
+		Icons = {},
+		Spritesheets = {},
+	}
+end
+
+local IconModule = {
+	IconsType = "lucide",
+	New = nil,
+	IconThemeTag = nil,
+	Icons = {
+		lucide = safeLoadPack("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"),
+		solar = safeLoadPack("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/solar/dist/Icons.lua"),
+		craft = safeLoadPack("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/craft/dist/Icons.lua"),
+		geist = safeLoadPack("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/geist/dist/Icons.lua"),
+		sfsymbols = safeLoadPack("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/sfsymbols/dist/Icons.lua"),
+		gravity = safeLoadPack("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/gravity/dist/Icons.lua"),
+	},
+}
+
+local function parseIconString(iconString)
+	if type(iconString) == "string" then
+		local iconType, iconName = iconString:match("^(.-):(.+)$")
+		if iconType and iconName then
+			return iconType, iconName
+		end
+	end
+	return nil, iconString
+end
+
+function IconModule.AddIcons(packName, iconsData)
+	if type(packName) ~= "string" or type(iconsData) ~= "table" then
+		error("AddIcons: packName must be string, iconsData must be table")
+	end
+
+	if not IconModule.Icons[packName] then
+		IconModule.Icons[packName] = {
+			Icons = {},
+			Spritesheets = {},
+		}
+	end
+
+	for iconName, iconValue in pairs(iconsData) do
+		if type(iconValue) == "number" or (type(iconValue) == "string" and iconValue:match("^rbxassetid://")) then
+			local imageId = iconValue
+			if type(iconValue) == "number" then
+				imageId = "rbxassetid://" .. tostring(iconValue)
+			end
+
+			IconModule.Icons[packName].Icons[iconName] = {
+				Image = imageId,
+				ImageRectSize = Vector2.new(0, 0),
+				ImageRectPosition = Vector2.new(0, 0),
+				Parts = nil,
+			}
+			IconModule.Icons[packName].Spritesheets[imageId] = imageId
+		elseif type(iconValue) == "table" then
+			local imageId = iconValue.Image
+			if imageId and iconValue.ImageRectSize and (iconValue.ImageRectPosition or iconValue.ImageRectOffset) then
+				if type(imageId) == "number" then
+					imageId = "rbxassetid://" .. tostring(imageId)
+				end
+
+				IconModule.Icons[packName].Icons[iconName] = {
+					Image = imageId,
+					ImageRectSize = iconValue.ImageRectSize,
+					ImageRectPosition = iconValue.ImageRectPosition or iconValue.ImageRectOffset,
+					Parts = iconValue.Parts,
+				}
+
+				if not IconModule.Icons[packName].Spritesheets[imageId] then
+					IconModule.Icons[packName].Spritesheets[imageId] = imageId
+				end
+			else
+				warn("AddIcons: Invalid spritesheet data format for icon '" .. tostring(iconName) .. "'")
+			end
+		else
+			warn("AddIcons: Unsupported data type for icon '" .. tostring(iconName) .. "': " .. type(iconValue))
+		end
+	end
+end
+
+function IconModule.SetIconsType(iconType)
+	IconModule.IconsType = iconType
+end
+
+function IconModule.Init(New, IconThemeTag)
+	IconModule.New = New
+	IconModule.IconThemeTag = IconThemeTag
+	return IconModule
+end
+
+function IconModule.Icon(Icon, Type, DefaultFormat)
+	DefaultFormat = DefaultFormat ~= false
+
+	local iconType, iconName = parseIconString(Icon)
+	local targetType = iconType or Type or IconModule.IconsType
+	local targetName = iconName
+
+	local iconSet = IconModule.Icons[targetType]
+	if not iconSet then
+		return nil
+	end
+
+	if iconSet.Icons and iconSet.Icons[targetName] then
+		local data = iconSet.Icons[targetName]
+		local sprite = iconSet.Spritesheets and iconSet.Spritesheets[tostring(data.Image)] or data.Image
+		return {
+			sprite,
+			data,
+		}
+	elseif iconSet[targetName] and type(iconSet[targetName]) == "string" and iconSet[targetName]:find("rbxassetid://") then
+		return DefaultFormat
+			and {
+				iconSet[targetName],
+				{
+					ImageRectSize = Vector2.new(0, 0),
+					ImageRectPosition = Vector2.new(0, 0),
+				},
+			}
+			or iconSet[targetName]
+	end
+
+	return nil
+end
+
+function IconModule.GetIcon(Icon, Type)
+	return IconModule.Icon(Icon, Type, false)
+end
+
+function IconModule.Icon2(Icon, Type, DefaultFormat)
+	return IconModule.Icon(Icon, Type, DefaultFormat)
+end
+
+function IconModule.Image(IconConfig)
+	IconConfig = IconConfig or {}
+
+	local Icon = {
+		Icon = IconConfig.Icon or nil,
+		Type = IconConfig.Type,
+		Colors = IconConfig.Colors or { (IconModule.IconThemeTag or Color3.new(1, 1, 1)), Color3.new(1, 1, 1) },
+		Size = IconConfig.Size or UDim2.new(0, 24, 0, 24),
+		IconFrame = nil,
+	}
+
+	local Colors = {}
+	for index, color in next, Icon.Colors do
+		Colors[index] = {
+			ThemeTag = typeof(color) == "string" and color or nil,
+			Color = typeof(color) == "Color3" and color or nil,
+		}
+	end
+
+	local IconLabel = IconModule.Icon2(Icon.Icon, Icon.Type, true)
+	if not IconLabel then
+		return nil
+	end
+
+	local isrbxassetid = typeof(IconLabel) == "string" and IconLabel:find("rbxassetid://")
+
+	if IconModule.New then
+		local New = IconModule.New
+
+		local IconFrame = New("ImageLabel", {
+			Size = Icon.Size,
+			BackgroundTransparency = 1,
+			ImageColor3 = Colors[1].Color or nil,
+			ThemeTag = Colors[1].ThemeTag and {
+				ImageColor3 = Colors[1].ThemeTag,
+			},
+			Image = isrbxassetid and IconLabel or IconLabel[1],
+			ImageRectSize = isrbxassetid and nil or IconLabel[2].ImageRectSize,
+			ImageRectOffset = isrbxassetid and nil or (IconLabel[2].ImageRectPosition or IconLabel[2].ImageRectOffset),
+		})
+
+		if not isrbxassetid and IconLabel[2].Parts then
+			for partIndex, part in next, IconLabel[2].Parts do
+				local IconPartLabel = IconModule.Icon(part, Icon.Type, true)
+				if IconPartLabel then
+					New("ImageLabel", {
+						Size = UDim2.new(1, 0, 1, 0),
+						BackgroundTransparency = 1,
+						ImageColor3 = (Colors[partIndex + 1] and Colors[partIndex + 1].Color) or nil,
+						ThemeTag = (Colors[partIndex + 1] and Colors[partIndex + 1].ThemeTag) and {
+							ImageColor3 = Colors[partIndex + 1].ThemeTag,
+						},
+						Image = typeof(IconPartLabel) == "string" and IconPartLabel or IconPartLabel[1],
+						ImageRectSize = typeof(IconPartLabel) == "string" and nil or IconPartLabel[2].ImageRectSize,
+						ImageRectOffset = typeof(IconPartLabel) == "string" and nil or (IconPartLabel[2].ImageRectPosition or IconPartLabel[2].ImageRectOffset),
+						Parent = IconFrame,
+					})
+				end
+			end
+		end
+
+		Icon.IconFrame = IconFrame
+	else
+		local IconFrame = Instance.new("ImageLabel")
+		IconFrame.Size = Icon.Size
+		IconFrame.BackgroundTransparency = 1
+		IconFrame.ImageColor3 = Colors[1].Color or Color3.new(1, 1, 1)
+		IconFrame.Image = isrbxassetid and IconLabel or IconLabel[1]
+		IconFrame.ImageRectSize = isrbxassetid and nil or IconLabel[2].ImageRectSize
+		IconFrame.ImageRectOffset = isrbxassetid and nil or (IconLabel[2].ImageRectPosition or IconLabel[2].ImageRectOffset)
+
+		if not isrbxassetid and IconLabel[2].Parts then
+			for partIndex, part in next, IconLabel[2].Parts do
+				local IconPartLabel = IconModule.Icon(part, Icon.Type, true)
+				if IconPartLabel then
+					local IconPart = Instance.new("ImageLabel")
+					IconPart.Size = UDim2.new(1, 0, 1, 0)
+					IconPart.BackgroundTransparency = 1
+					IconPart.ImageColor3 = (Colors[partIndex + 1] and Colors[partIndex + 1].Color) or Color3.new(1, 1, 1)
+					IconPart.Image = typeof(IconPartLabel) == "string" and IconPartLabel or IconPartLabel[1]
+					IconPart.ImageRectSize = typeof(IconPartLabel) == "string" and nil or IconPartLabel[2].ImageRectSize
+					IconPart.ImageRectOffset = typeof(IconPartLabel) == "string" and nil or (IconPartLabel[2].ImageRectPosition or IconPartLabel[2].ImageRectOffset)
+					IconPart.Parent = IconFrame
+				end
+			end
+		end
+
+		Icon.IconFrame = IconFrame
+	end
+
+	return Icon
+end
 
 local SKUI = {}
-SKUI.__index = SKUI
+SKUI.IconModule = IconModule
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-
-local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+function SKUI:SetIconModule(module)
+	if type(module) == "table" then
+		self.IconModule = module
+	end
+end
 
 local function create(className, props)
 	local obj = Instance.new(className)
@@ -22,7 +319,7 @@ end
 local function round(obj, radius)
 	create("UICorner", {
 		CornerRadius = radius or UDim.new(0, 10),
-		Parent = obj
+		Parent = obj,
 	})
 end
 
@@ -31,7 +328,7 @@ local function stroke(obj, color, thickness, transparency)
 		Color = color or Color3.fromRGB(70, 170, 95),
 		Thickness = thickness or 1,
 		Transparency = transparency or 0.25,
-		Parent = obj
+		Parent = obj,
 	})
 end
 
@@ -41,7 +338,7 @@ local function pad(obj, l, r, t, b)
 		PaddingRight = UDim.new(0, r or 0),
 		PaddingTop = UDim.new(0, t or 0),
 		PaddingBottom = UDim.new(0, b or 0),
-		Parent = obj
+		Parent = obj,
 	})
 end
 
@@ -54,12 +351,6 @@ local function getGuiParent()
 		return CoreGui
 	end
 	return (gethui and gethui()) or CoreGui
-end
-
--- Optional icon provider hook
-SKUI.IconModule = nil
-function SKUI:SetIconModule(module)
-	SKUI.IconModule = module
 end
 
 local function resolveIcon(icon)
@@ -76,25 +367,17 @@ local function resolveIcon(icon)
 			return icon, nil
 		end
 
-		-- Try your icon module first
-		local provider = SKUI.IconModule or rawget(_G, "IconModule")
-		if provider then
+		local provider = SKUI.IconModule or IconModule
+		if provider and provider.Icon then
 			local ok, result = pcall(function()
-				if provider.Icon2 then
-					return provider.Icon2(icon)
-				elseif provider.Icon then
-					return provider.Icon(icon)
-				end
-				return nil
+				return provider.Icon(icon, nil, true)
 			end)
 
 			if ok and result then
 				if type(result) == "string" then
 					return result, nil
 				elseif type(result) == "table" then
-					local image = result[1]
-					local data = result[2]
-					return image, data
+					return result[1], result[2]
 				end
 			end
 		end
@@ -115,17 +398,40 @@ local function makeIcon(parent, icon, size, tint)
 		Image = image,
 		ImageColor3 = tint or Color3.new(1, 1, 1),
 		Size = size or UDim2.fromOffset(18, 18),
-		Parent = parent
+		Parent = parent,
 	})
 
 	if data and data.ImageRectSize then
 		img.ImageRectSize = data.ImageRectSize
 	end
-	if data and data.ImageRectPosition then
-		img.ImageRectOffset = data.ImageRectPosition
+	if data and (data.ImageRectPosition or data.ImageRectOffset) then
+		img.ImageRectOffset = data.ImageRectPosition or data.ImageRectOffset
 	end
 
 	return img
+end
+
+local function putFallback(parent, text, size, color)
+	return create("TextLabel", {
+		Name = "Fallback",
+		BackgroundTransparency = 1,
+		Text = text,
+		Size = size or UDim2.fromOffset(16, 16),
+		Font = Enum.Font.GothamBold,
+		TextColor3 = color or Color3.fromRGB(235, 255, 240),
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		Parent = parent,
+	})
+end
+
+local function putIconOrFallback(parent, icon, fallbackText, size, color)
+	local img = makeIcon(parent, icon, size, color)
+	if img then
+		return img
+	end
+	return putFallback(parent, fallbackText or "?", size, color)
 end
 
 function SKUI:CreateWindow(config)
@@ -141,7 +447,7 @@ function SKUI:CreateWindow(config)
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		IgnoreGuiInset = true,
-		Parent = getGuiParent()
+		Parent = getGuiParent(),
 	})
 
 	local main = create("Frame", {
@@ -152,8 +458,9 @@ function SKUI:CreateWindow(config)
 		BackgroundTransparency = 0.08,
 		BorderSizePixel = 0,
 		Active = true,
-		Parent = screen
+		Parent = screen,
 	})
+	main.ClipsDescendants = false
 	round(main, UDim.new(0, 14))
 	stroke(main, Color3.fromRGB(40, 190, 90), 1, 0.55)
 
@@ -163,7 +470,7 @@ function SKUI:CreateWindow(config)
 		BackgroundColor3 = Color3.fromRGB(11, 36, 22),
 		BackgroundTransparency = 0.10,
 		BorderSizePixel = 0,
-		Parent = main
+		Parent = main,
 	})
 	round(top, UDim.new(0, 14))
 
@@ -174,7 +481,7 @@ function SKUI:CreateWindow(config)
 		BackgroundColor3 = top.BackgroundColor3,
 		BackgroundTransparency = top.BackgroundTransparency,
 		BorderSizePixel = 0,
-		Parent = top
+		Parent = top,
 	})
 
 	local iconHolder = create("Frame", {
@@ -184,16 +491,14 @@ function SKUI:CreateWindow(config)
 		BackgroundColor3 = Color3.fromRGB(18, 55, 33),
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
-		Parent = top
+		Parent = top,
 	})
 	round(iconHolder, UDim.new(0, 8))
 	stroke(iconHolder, Color3.fromRGB(60, 220, 120), 1, 0.7)
+
 	if Image then
-		makeIcon(iconHolder, Image, UDim2.fromOffset(18, 18), Color3.fromRGB(115, 255, 170))
-		local img = iconHolder:FindFirstChild("Icon")
-		if img then
-			img.Position = UDim2.new(0.5, -9, 0.5, -9)
-		end
+		local logo = putIconOrFallback(iconHolder, Image, "◉", UDim2.fromOffset(18, 18), Color3.fromRGB(115, 255, 170))
+		logo.Position = UDim2.new(0.5, -9, 0.5, -9)
 	end
 
 	local titleLabel = create("TextLabel", {
@@ -206,7 +511,7 @@ function SKUI:CreateWindow(config)
 		TextColor3 = Color3.fromRGB(210, 255, 225),
 		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = top
+		Parent = top,
 	})
 
 	local subtitleLabel = create("TextLabel", {
@@ -219,7 +524,7 @@ function SKUI:CreateWindow(config)
 		TextColor3 = Color3.fromRGB(130, 175, 145),
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = top
+		Parent = top,
 	})
 
 	local closeBtn = create("TextButton", {
@@ -231,15 +536,12 @@ function SKUI:CreateWindow(config)
 		BorderSizePixel = 0,
 		Text = "",
 		AutoButtonColor = false,
-		Parent = top
+		Parent = top,
 	})
 	round(closeBtn, UDim.new(0, 8))
 	stroke(closeBtn, Color3.fromRGB(255, 90, 90), 1, 0.65)
-	makeIcon(closeBtn, "x", UDim2.fromOffset(16, 16), Color3.fromRGB(255, 145, 145))
-	local closeIcon = closeBtn:FindFirstChild("Icon")
-	if closeIcon then
-		closeIcon.Position = UDim2.new(0.5, -8, 0.5, -8)
-	end
+	local closeVisual = putIconOrFallback(closeBtn, "x", "×", UDim2.fromOffset(16, 16), Color3.fromRGB(255, 145, 145))
+	closeVisual.Position = UDim2.new(0.5, -8, 0.5, -8)
 
 	local searchBox
 	if SearchBar then
@@ -257,20 +559,13 @@ function SKUI:CreateWindow(config)
 			TextColor3 = Color3.fromRGB(230, 255, 238),
 			PlaceholderColor3 = Color3.fromRGB(110, 150, 120),
 			TextSize = 12,
-			Parent = top
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = top,
 		})
 		round(searchBox, UDim.new(0, 8))
 		stroke(searchBox, Color3.fromRGB(55, 190, 100), 1, 0.80)
-		makeIcon(searchBox, "search", UDim2.fromOffset(14, 14), Color3.fromRGB(135, 255, 180))
-		local sIcon = searchBox:FindFirstChild("Icon")
-		if sIcon then
-			sIcon.Position = UDim2.new(0, 8, 0.5, -7)
-		end
-		searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-			if self._activeTab then
-				self:_applySearch(searchBox.Text)
-			end
-		end)
+		local searchVisual = putIconOrFallback(searchBox, "search", "⌕", UDim2.fromOffset(14, 14), Color3.fromRGB(135, 255, 180))
+		searchVisual.Position = UDim2.new(0, 8, 0.5, -7)
 	end
 
 	local body = create("Frame", {
@@ -278,7 +573,7 @@ function SKUI:CreateWindow(config)
 		Size = UDim2.new(1, 0, 1, -46),
 		Position = UDim2.new(0, 0, 0, 46),
 		BackgroundTransparency = 1,
-		Parent = main
+		Parent = main,
 	})
 
 	local tabPanel = create("ScrollingFrame", {
@@ -291,16 +586,16 @@ function SKUI:CreateWindow(config)
 		ScrollBarImageColor3 = Color3.fromRGB(70, 210, 110),
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
-		Parent = body
+		Parent = body,
 	})
 	round(tabPanel, UDim.new(0, 12))
 	stroke(tabPanel, Color3.fromRGB(40, 160, 80), 1, 0.82)
 	pad(tabPanel, 10, 10, 10, 10)
 
-	local tabList = create("UIListLayout", {
+	create("UIListLayout", {
 		Padding = UDim.new(0, 8),
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = tabPanel
+		Parent = tabPanel,
 	})
 
 	local rightPanel = create("Frame", {
@@ -310,38 +605,17 @@ function SKUI:CreateWindow(config)
 		BackgroundColor3 = Color3.fromRGB(7, 19, 13),
 		BackgroundTransparency = 0.24,
 		BorderSizePixel = 0,
-		Parent = body
+		Parent = body,
 	})
 	round(rightPanel, UDim.new(0, 12))
 	stroke(rightPanel, Color3.fromRGB(36, 145, 78), 1, 0.88)
 
-	local elementScroll = create("ScrollingFrame", {
-		Name = "ElementScroll",
+	local elementsHolder = create("Frame", {
+		Name = "ElementsHolder",
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ScrollBarThickness = 4,
-		ScrollBarImageColor3 = Color3.fromRGB(60, 200, 100),
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		Parent = rightPanel
-	})
-	pad(elementScroll, 12, 12, 12, 12)
-
-	local elementList = create("UIListLayout", {
-		Padding = UDim.new(0, 10),
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = elementScroll
-	})
-
-	local overlay = create("Frame", {
-		Name = "PopupOverlay",
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 1,
-		Visible = false,
-		ZIndex = 40,
-		Parent = main
+		Parent = rightPanel,
 	})
 
 	local popup = create("Frame", {
@@ -353,12 +627,12 @@ function SKUI:CreateWindow(config)
 		BorderSizePixel = 0,
 		ZIndex = 41,
 		Visible = false,
-		Parent = overlay
+		Parent = main,
 	})
 	round(popup, UDim.new(0, 12))
 	stroke(popup, Color3.fromRGB(60, 220, 120), 1, 0.65)
 
-	local popupTop = create("TextLabel", {
+	local popupTitle = create("TextLabel", {
 		Name = "Title",
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, -20, 0, 20),
@@ -369,7 +643,7 @@ function SKUI:CreateWindow(config)
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 42,
-		Parent = popup
+		Parent = popup,
 	})
 
 	local popupSearch = create("TextBox", {
@@ -387,7 +661,7 @@ function SKUI:CreateWindow(config)
 		TextColor3 = Color3.fromRGB(235, 255, 240),
 		PlaceholderColor3 = Color3.fromRGB(110, 150, 120),
 		ZIndex = 42,
-		Parent = popup
+		Parent = popup,
 	})
 	round(popupSearch, UDim.new(0, 8))
 	stroke(popupSearch, Color3.fromRGB(75, 200, 110), 1, 0.85)
@@ -403,12 +677,13 @@ function SKUI:CreateWindow(config)
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
 		ZIndex = 42,
-		Parent = popup
+		Parent = popup,
 	})
-	local popupList = create("UIListLayout", {
+
+	create("UIListLayout", {
 		Padding = UDim.new(0, 6),
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		Parent = popupScroll
+		Parent = popupScroll,
 	})
 
 	local popupClose = create("TextButton", {
@@ -420,18 +695,26 @@ function SKUI:CreateWindow(config)
 		BorderSizePixel = 0,
 		Text = "",
 		ZIndex = 43,
-		Parent = popup
+		Parent = popup,
 	})
 	round(popupClose, UDim.new(0, 8))
 	stroke(popupClose, Color3.fromRGB(255, 90, 90), 1, 0.7)
-	makeIcon(popupClose, "x", UDim2.fromOffset(14, 14), Color3.fromRGB(255, 145, 145))
-	local popupCloseIcon = popupClose:FindFirstChild("Icon")
-	if popupCloseIcon then
-		popupCloseIcon.Position = UDim2.new(0.5, -7, 0.5, -7)
-		popupCloseIcon.ZIndex = 44
-	end
+	local popupCloseVisual = putIconOrFallback(popupClose, "x", "×", UDim2.fromOffset(14, 14), Color3.fromRGB(255, 145, 145))
+	popupCloseVisual.Position = UDim2.new(0.5, -7, 0.5, -7)
+
+	local overlay = create("Frame", {
+		Name = "PopupOverlay",
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		Visible = false,
+		ZIndex = 40,
+		Parent = main,
+	})
+	overlay.Active = true
 
 	local floatingBtn
+	local tabObjects = {}
 
 	local window = {
 		ScreenGui = screen,
@@ -444,19 +727,18 @@ function SKUI:CreateWindow(config)
 		PopupOverlay = overlay,
 		ActiveTabs = {},
 		_activeTab = nil,
-		_popupTarget = nil,
-		_minimized = false,
-		Dragging = false,
 	}
 
 	function window:_applySearch(query)
 		query = string.lower(query or "")
 		local tab = self._activeTab
-		if not tab then return end
+		if not tab then
+			return
+		end
 
 		for _, item in ipairs(tab._items or {}) do
-			if item.SearchText then
-				local visible = query == "" or string.find(string.lower(item.SearchText), query, 1, true)
+			if item.Root then
+				local visible = query == "" or string.find(string.lower(item.SearchText or ""), query, 1, true) ~= nil
 				item.Root.Visible = visible
 			end
 		end
@@ -467,17 +749,21 @@ function SKUI:CreateWindow(config)
 			t.Container.Visible = false
 			t.Button.BackgroundColor3 = Color3.fromRGB(16, 42, 26)
 		end
+
 		tab.Container.Visible = true
 		tab.Button.BackgroundColor3 = Color3.fromRGB(30, 100, 58)
 		window._activeTab = tab
+
 		if searchBox then
 			window:_applySearch(searchBox.Text)
 		end
 	end
 
-	-- Dragging
 	do
-		local dragStart, startPos, dragInput
+		local dragStart
+		local startPos
+		local dragInput
+		local dragging = false
 
 		local function update(input)
 			local delta = input.Position - dragStart
@@ -510,14 +796,16 @@ function SKUI:CreateWindow(config)
 		end)
 
 		UserInputService.InputChanged:Connect(function(input)
-			if input == dragInput and dragStart and main.Visible then
+			if dragging and dragInput and input == dragInput and dragStart and main.Visible then
 				update(input)
 			end
 		end)
 	end
 
 	closeBtn.MouseButton1Click:Connect(function()
-		screen:Destroy()
+		if screen then
+			screen:Destroy()
+		end
 		if floatingBtn then
 			floatingBtn:Destroy()
 		end
@@ -539,7 +827,7 @@ function SKUI:CreateWindow(config)
 			ResetOnSpawn = false,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 			IgnoreGuiInset = true,
-			Parent = getGuiParent()
+			Parent = getGuiParent(),
 		})
 
 		local btn = create("TextButton", {
@@ -551,7 +839,7 @@ function SKUI:CreateWindow(config)
 			BorderSizePixel = 0,
 			Text = "",
 			AutoButtonColor = false,
-			Parent = gui
+			Parent = gui,
 		})
 
 		if Shape == "Circle" then
@@ -562,14 +850,11 @@ function SKUI:CreateWindow(config)
 		stroke(btn, Color3.fromRGB(65, 220, 115), 1, 0.72)
 
 		if Img then
-			makeIcon(btn, Img, UDim2.fromOffset(18, 18), Color3.fromRGB(130, 255, 180))
-			local ic = btn:FindFirstChild("Icon")
-			if ic then
-				ic.Position = UDim2.fromOffset(12, 9)
-			end
+			local icon = putIconOrFallback(btn, Img, "◉", UDim2.fromOffset(18, 18), Color3.fromRGB(130, 255, 180))
+			icon.Position = UDim2.fromOffset(12, 9)
 		end
 
-		local txt = create("TextLabel", {
+		create("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, Img and 38 or 14, 0, 0),
 			Size = UDim2.new(1, -(Img and 48 or 18), 1, 0),
@@ -578,7 +863,7 @@ function SKUI:CreateWindow(config)
 			TextColor3 = Color3.fromRGB(225, 255, 235),
 			TextSize = 13,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = btn
+			Parent = btn,
 		})
 
 		btn.MouseButton1Click:Connect(function()
@@ -601,20 +886,19 @@ function SKUI:CreateWindow(config)
 			BorderSizePixel = 0,
 			Text = "",
 			AutoButtonColor = false,
-			Parent = tabPanel
+			Parent = tabPanel,
 		})
 		round(tabBtn, UDim.new(0, 10))
 		stroke(tabBtn, Color3.fromRGB(50, 180, 95), 1, 0.85)
 
 		if tabIcon then
-			makeIcon(tabBtn, tabIcon, UDim2.fromOffset(16, 16), Color3.fromRGB(130, 255, 180))
-			local ti = tabBtn:FindFirstChild("Icon")
-			if ti then
-				ti.Position = UDim2.fromOffset(10, 9)
+			local icon = makeIcon(tabBtn, tabIcon, UDim2.fromOffset(16, 16), Color3.fromRGB(130, 255, 180))
+			if icon then
+				icon.Position = UDim2.fromOffset(10, 9)
 			end
 		end
 
-		local tabText = create("TextLabel", {
+		create("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, tabIcon and 34 or 12, 0, 0),
 			Size = UDim2.new(1, -(tabIcon and 40 or 14), 1, 0),
@@ -623,7 +907,7 @@ function SKUI:CreateWindow(config)
 			TextColor3 = Color3.fromRGB(225, 255, 235),
 			TextSize = 13,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = tabBtn
+			Parent = tabBtn,
 		})
 
 		local container = create("ScrollingFrame", {
@@ -636,14 +920,16 @@ function SKUI:CreateWindow(config)
 			ScrollBarImageColor3 = Color3.fromRGB(60, 200, 100),
 			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			CanvasSize = UDim2.new(),
-			Parent = elementScroll
+			Parent = elementsHolder,
 		})
 
-		local list = create("UIListLayout", {
+		create("UIListLayout", {
 			Padding = UDim.new(0, 10),
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			Parent = container
+			Parent = container,
 		})
+
+		pad(container, 12, 12, 12, 12)
 
 		local tab = {
 			Title = tabTitle,
@@ -656,12 +942,13 @@ function SKUI:CreateWindow(config)
 		local function addItem(root, searchText)
 			table.insert(tab._items, {
 				Root = root,
-				SearchText = searchText or ""
+				SearchText = searchText or "",
 			})
 		end
 
 		function tab:CreateButton(data)
 			data = data or {}
+
 			local root = create("TextButton", {
 				Name = "ButtonElement",
 				Size = UDim2.new(1, 0, 0, 34),
@@ -670,7 +957,7 @@ function SKUI:CreateWindow(config)
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
-				Parent = container
+				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
 			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
@@ -684,7 +971,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(235, 255, 240),
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				Parent = root
+				Parent = root,
 			})
 
 			if data.Locked then
@@ -692,7 +979,9 @@ function SKUI:CreateWindow(config)
 			end
 
 			root.MouseButton1Click:Connect(function()
-				if data.Locked then return end
+				if data.Locked then
+					return
+				end
 				if data.Callback then
 					task.spawn(data.Callback)
 				end
@@ -712,12 +1001,12 @@ function SKUI:CreateWindow(config)
 				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
 				BackgroundTransparency = 0.12,
 				BorderSizePixel = 0,
-				Parent = container
+				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
 			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
 
-			local title = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 4),
 				Size = UDim2.new(1, -70, 0, 18),
@@ -726,10 +1015,10 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(235, 255, 240),
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				Parent = root
+				Parent = root,
 			})
 
-			local desc = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 20),
 				Size = UDim2.new(1, -70, 0, 14),
@@ -738,7 +1027,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(130, 170, 140),
 				TextSize = 11,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				Parent = root
+				Parent = root,
 			})
 
 			local switch = create("TextButton", {
@@ -748,7 +1037,7 @@ function SKUI:CreateWindow(config)
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
-				Parent = root
+				Parent = root,
 			})
 			round(switch, UDim.new(1, 0))
 
@@ -757,17 +1046,17 @@ function SKUI:CreateWindow(config)
 				Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
 				BackgroundColor3 = Color3.fromRGB(235, 255, 240),
 				BorderSizePixel = 0,
-				Parent = switch
+				Parent = switch,
 			})
 			round(knob, UDim.new(1, 0))
 
 			local function setState(v)
 				state = v
 				tween(switch, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundColor3 = state and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(35, 55, 42)
+					BackgroundColor3 = state and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(35, 55, 42),
 				}):Play()
 				tween(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
+					Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
 				}):Play()
 				if data.Callback then
 					task.spawn(data.Callback, state)
@@ -783,7 +1072,7 @@ function SKUI:CreateWindow(config)
 				Set = setState,
 				Get = function()
 					return state
-				end
+				end,
 			}
 		end
 
@@ -796,12 +1085,12 @@ function SKUI:CreateWindow(config)
 				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
 				BackgroundTransparency = 0.12,
 				BorderSizePixel = 0,
-				Parent = container
+				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
 			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
 
-			local title = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 4),
 				Size = UDim2.new(1, -24, 0, 16),
@@ -810,7 +1099,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(235, 255, 240),
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				Parent = root
+				Parent = root,
 			})
 
 			local box = create("TextBox", {
@@ -826,7 +1115,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(240, 255, 242),
 				PlaceholderColor3 = Color3.fromRGB(110, 150, 120),
 				TextSize = 12,
-				Parent = root
+				Parent = root,
 			})
 			round(box, UDim.new(0, 8))
 			stroke(box, Color3.fromRGB(60, 190, 110), 1, 0.88)
@@ -843,9 +1132,14 @@ function SKUI:CreateWindow(config)
 
 		function tab:CreateSlider(data)
 			data = data or {}
+
 			local min = (data.Value and data.Value.Min) or 0
 			local max = (data.Value and data.Value.Max) or 100
 			local value = (data.Value and data.Value.Default) or min
+			local step = tonumber(data.Step) or 1
+			if step <= 0 then
+				step = 1
+			end
 
 			local root = create("Frame", {
 				Name = "SliderElement",
@@ -853,12 +1147,12 @@ function SKUI:CreateWindow(config)
 				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
 				BackgroundTransparency = 0.12,
 				BorderSizePixel = 0,
-				Parent = container
+				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
 			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
 
-			local title = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 4),
 				Size = UDim2.new(1, -70, 0, 16),
@@ -867,7 +1161,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(235, 255, 240),
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				Parent = root
+				Parent = root,
 			})
 
 			local valLabel = create("TextLabel", {
@@ -879,7 +1173,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(140, 255, 175),
 				TextSize = 12,
 				TextXAlignment = Enum.TextXAlignment.Right,
-				Parent = root
+				Parent = root,
 			})
 
 			local track = create("Frame", {
@@ -887,7 +1181,7 @@ function SKUI:CreateWindow(config)
 				Position = UDim2.fromOffset(12, 32),
 				BackgroundColor3 = Color3.fromRGB(25, 55, 36),
 				BorderSizePixel = 0,
-				Parent = root
+				Parent = root,
 			})
 			round(track, UDim.new(1, 0))
 
@@ -895,7 +1189,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.new(0, 0, 1, 0),
 				BackgroundColor3 = Color3.fromRGB(55, 200, 105),
 				BorderSizePixel = 0,
-				Parent = track
+				Parent = track,
 			})
 			round(fill, UDim.new(1, 0))
 
@@ -903,7 +1197,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.fromOffset(14, 14),
 				BackgroundColor3 = Color3.fromRGB(235, 255, 240),
 				BorderSizePixel = 0,
-				Parent = track
+				Parent = track,
 			})
 			round(knob, UDim.new(1, 0))
 
@@ -911,11 +1205,15 @@ function SKUI:CreateWindow(config)
 
 			local function setValue(v)
 				v = math.clamp(v, min, max)
+				v = math.floor((v - min) / step + 0.5) * step + min
+				v = math.clamp(v, min, max)
+
 				value = v
 				local alpha = (value - min) / math.max((max - min), 1)
 				fill.Size = UDim2.new(alpha, 0, 1, 0)
 				knob.Position = UDim2.new(alpha, -7, 0.5, -7)
 				valLabel.Text = tostring(math.floor((value * 1000) + 0.5) / 1000)
+
 				if data.Callback then
 					task.spawn(data.Callback, value)
 				end
@@ -947,11 +1245,12 @@ function SKUI:CreateWindow(config)
 
 			setValue(value)
 			addItem(root, data.Title or "Slider")
+
 			return {
 				Set = setValue,
 				Get = function()
 					return value
-				end
+				end,
 			}
 		end
 
@@ -968,12 +1267,12 @@ function SKUI:CreateWindow(config)
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
-				Parent = container
+				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
 			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
 
-			local title = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.new(1, -44, 1, 0),
@@ -982,7 +1281,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(235, 255, 240),
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				Parent = root
+				Parent = root,
 			})
 
 			local valueLabel = create("TextLabel", {
@@ -994,7 +1293,7 @@ function SKUI:CreateWindow(config)
 				TextColor3 = Color3.fromRGB(145, 255, 185),
 				TextSize = 12,
 				TextXAlignment = Enum.TextXAlignment.Right,
-				Parent = root
+				Parent = root,
 			})
 
 			local arrow = create("TextLabel", {
@@ -1005,13 +1304,13 @@ function SKUI:CreateWindow(config)
 				Text = "▾",
 				TextColor3 = Color3.fromRGB(145, 255, 185),
 				TextSize = 16,
-				Parent = root
+				Parent = root,
 			})
 
 			local dropdown = {}
-
 			local function refreshList(filterText)
 				filterText = string.lower(filterText or "")
+
 				for _, c in ipairs(popupScroll:GetChildren()) do
 					if c:IsA("TextButton") then
 						c:Destroy()
@@ -1032,7 +1331,7 @@ function SKUI:CreateWindow(config)
 							TextColor3 = Color3.fromRGB(235, 255, 240),
 							AutoButtonColor = false,
 							ZIndex = 42,
-							Parent = popupScroll
+							Parent = popupScroll,
 						})
 						round(opt, UDim.new(0, 8))
 						stroke(opt, Color3.fromRGB(50, 170, 90), 1, 0.9)
@@ -1053,6 +1352,7 @@ function SKUI:CreateWindow(config)
 			local function openDropdown()
 				overlay.Visible = true
 				popup.Visible = true
+				popupTitle.Text = data.Title or "Dropdown"
 				popupSearch.Text = ""
 				refreshList("")
 				popupSearch:CaptureFocus()
@@ -1090,15 +1390,12 @@ function SKUI:CreateWindow(config)
 				return selected
 			end
 
-			root.MouseButton1Click:Connect(function()
-				-- required for your usage
-			end)
-
 			addItem(root, data.Title or "Dropdown")
-			return setmetatable(dropdown, { __index = dropdown })
+			return dropdown
 		end
 
 		table.insert(window.ActiveTabs, tab)
+
 		if #window.ActiveTabs == 1 then
 			showTab(tab)
 		end
@@ -1110,7 +1407,16 @@ function SKUI:CreateWindow(config)
 		return tab
 	end
 
-	return setmetatable(window, { __index = self })
+	if searchBox then
+		searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+			if window._activeTab then
+				window:_applySearch(searchBox.Text)
+			end
+		end)
+	end
+
+	return window
 end
 
+SKUI.IconModule = IconModule
 return SKUI
