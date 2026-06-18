@@ -418,6 +418,7 @@ function Library:CreateWindow(Settings: { Name: string, Title: string, Subtitle:
 
 		SetProperty(MobileButton, {
 			Name = "MobileMinimizer",
+			AnchorPoint = Vector2.new(0, 0),
 			Size = UDim2.fromOffset(55, 55),
 			Position = UDim2.new(0, 20, 1, -95),
 			BackgroundColor3 = Settings.BackgroundColor3 or Theme.Component,
@@ -426,8 +427,9 @@ function Library:CreateWindow(Settings: { Name: string, Title: string, Subtitle:
 			ScaleType = Enum.ScaleType.Fit,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
-			ZIndex = 50,
-			Parent = Screen,
+			Visible = true,
+			Active = true,
+			ZIndex = 1000,
 		});
 
 		local Corner = Instance.new("UICorner");
@@ -443,6 +445,9 @@ function Library:CreateWindow(Settings: { Name: string, Title: string, Subtitle:
 		Animations:Component(MobileButton, true);
 		Drag(MobileButton);
 		Connect(MobileButton.MouseButton1Click, Close);
+
+		--// Parented last, fully styled, so it shows up immediately and on top of everything else
+		MobileButton.Parent = Screen;
 
 		return MobileButton
 	end
