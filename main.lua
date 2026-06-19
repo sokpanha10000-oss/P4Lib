@@ -1,25 +1,23 @@
---// Nexus Green SKUI Hub + Fused IconModule
---// Draggable window, minimize button, close destroy, tab panel, element panel,
---// transparent dark green UI, element scrolling, dropdown popup scroll + search,
---// icon support for names like "home".
+--// SKUI White Nexus Hub + Fixed Icon Support
+--// API:
+--// local SKUI = loadstring(game:HttpGet("..."))()
+--// local Window = SKUI:CreateWindow({...})
+--// local MinimizeBtn = Window:CreateMinimizeBtn({...})
+--// local Tab = Window:CreateTab({ "Main", "home" })
 
 local cloneref = (cloneref or clonereference or function(instance)
 	return instance
 end)
 
-local HttpService = cloneref(game:GetService("HttpService"))
 local Players = cloneref(game:GetService("Players"))
+local HttpService = cloneref(game:GetService("HttpService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local TweenService = cloneref(game:GetService("TweenService"))
 local CoreGui = cloneref(game:GetService("CoreGui"))
 
-local LocalPlayer = Players.LocalPlayer
-
 local function Get(url)
-	local ok, result
-
 	if typeof(game.HttpGet) == "function" then
-		ok, result = pcall(function()
+		local ok, result = pcall(function()
 			return game:HttpGet(url)
 		end)
 		if ok and result then
@@ -27,10 +25,9 @@ local function Get(url)
 		end
 	end
 
-	ok, result = pcall(function()
+	local ok, result = pcall(function()
 		return HttpService:GetAsync(url)
 	end)
-
 	if ok and result then
 		return result
 	end
@@ -47,9 +44,8 @@ local function safeLoadPack(url)
 		}
 	end
 
-	local fn, err = loadstring(src)
+	local fn = loadstring(src)
 	if not fn then
-		warn("Icon pack loadstring failed: " .. tostring(err))
 		return {
 			Icons = {},
 			Spritesheets = {},
@@ -130,15 +126,18 @@ function IconModule.AddIcons(packName, iconsData)
 			IconModule.Icons[packName].Spritesheets[imageId] = imageId
 		elseif type(iconValue) == "table" then
 			local imageId = iconValue.Image
-			if imageId and iconValue.ImageRectSize and (iconValue.ImageRectPosition or iconValue.ImageRectOffset) then
+			local rectSize = iconValue.ImageRectSize
+			local rectPos = iconValue.ImageRectPosition or iconValue.ImageRectOffset
+
+			if imageId and rectSize and rectPos then
 				if type(imageId) == "number" then
 					imageId = "rbxassetid://" .. tostring(imageId)
 				end
 
 				IconModule.Icons[packName].Icons[iconName] = {
 					Image = imageId,
-					ImageRectSize = iconValue.ImageRectSize,
-					ImageRectPosition = iconValue.ImageRectPosition or iconValue.ImageRectOffset,
+					ImageRectSize = rectSize,
+					ImageRectPosition = rectPos,
 					Parts = iconValue.Parts,
 				}
 
@@ -178,21 +177,19 @@ function IconModule.Icon(Icon, Type, DefaultFormat)
 
 	if iconSet.Icons and iconSet.Icons[targetName] then
 		local data = iconSet.Icons[targetName]
-		local sprite = iconSet.Spritesheets and iconSet.Spritesheets[tostring(data.Image)] or data.Image
+		local sprite = (iconSet.Spritesheets and iconSet.Spritesheets[tostring(data.Image)]) or data.Image
 		return {
 			sprite,
 			data,
 		}
 	elseif iconSet[targetName] and type(iconSet[targetName]) == "string" and iconSet[targetName]:find("rbxassetid://") then
-		return DefaultFormat
-			and {
-				iconSet[targetName],
-				{
-					ImageRectSize = Vector2.new(0, 0),
-					ImageRectPosition = Vector2.new(0, 0),
-				},
-			}
-			or iconSet[targetName]
+		return DefaultFormat and {
+			iconSet[targetName],
+			{
+				ImageRectSize = Vector2.new(0, 0),
+				ImageRectPosition = Vector2.new(0, 0),
+			},
+		} or iconSet[targetName]
 	end
 
 	return nil
@@ -248,15 +245,15 @@ function IconModule.Image(IconConfig)
 		})
 
 		if not isrbxassetid and IconLabel[2].Parts then
-			for partIndex, part in next, IconLabel[2].Parts do
+			for i, part in next, IconLabel[2].Parts do
 				local IconPartLabel = IconModule.Icon(part, Icon.Type, true)
 				if IconPartLabel then
 					New("ImageLabel", {
 						Size = UDim2.new(1, 0, 1, 0),
 						BackgroundTransparency = 1,
-						ImageColor3 = (Colors[partIndex + 1] and Colors[partIndex + 1].Color) or nil,
-						ThemeTag = (Colors[partIndex + 1] and Colors[partIndex + 1].ThemeTag) and {
-							ImageColor3 = Colors[partIndex + 1].ThemeTag,
+						ImageColor3 = (Colors[i + 1] and Colors[i + 1].Color) or nil,
+						ThemeTag = (Colors[i + 1] and Colors[i + 1].ThemeTag) and {
+							ImageColor3 = Colors[i + 1].ThemeTag,
 						},
 						Image = typeof(IconPartLabel) == "string" and IconPartLabel or IconPartLabel[1],
 						ImageRectSize = typeof(IconPartLabel) == "string" and nil or IconPartLabel[2].ImageRectSize,
@@ -278,13 +275,13 @@ function IconModule.Image(IconConfig)
 		IconFrame.ImageRectOffset = isrbxassetid and nil or (IconLabel[2].ImageRectPosition or IconLabel[2].ImageRectOffset)
 
 		if not isrbxassetid and IconLabel[2].Parts then
-			for partIndex, part in next, IconLabel[2].Parts do
+			for i, part in next, IconLabel[2].Parts do
 				local IconPartLabel = IconModule.Icon(part, Icon.Type, true)
 				if IconPartLabel then
 					local IconPart = Instance.new("ImageLabel")
 					IconPart.Size = UDim2.new(1, 0, 1, 0)
 					IconPart.BackgroundTransparency = 1
-					IconPart.ImageColor3 = (Colors[partIndex + 1] and Colors[partIndex + 1].Color) or Color3.new(1, 1, 1)
+					IconPart.ImageColor3 = (Colors[i + 1] and Colors[i + 1].Color) or Color3.new(1, 1, 1)
 					IconPart.Image = typeof(IconPartLabel) == "string" and IconPartLabel or IconPartLabel[1]
 					IconPart.ImageRectSize = typeof(IconPartLabel) == "string" and nil or IconPartLabel[2].ImageRectSize
 					IconPart.ImageRectOffset = typeof(IconPartLabel) == "string" and nil or (IconPartLabel[2].ImageRectPosition or IconPartLabel[2].ImageRectOffset)
@@ -325,7 +322,7 @@ end
 
 local function stroke(obj, color, thickness, transparency)
 	create("UIStroke", {
-		Color = color or Color3.fromRGB(70, 170, 95),
+		Color = color or Color3.fromRGB(170, 170, 170),
 		Thickness = thickness or 1,
 		Transparency = transparency or 0.25,
 		Parent = obj,
@@ -411,14 +408,14 @@ local function makeIcon(parent, icon, size, tint)
 	return img
 end
 
-local function putFallback(parent, text, size, color)
+local function fallbackIcon(parent, text, size, color)
 	return create("TextLabel", {
-		Name = "Fallback",
+		Name = "FallbackIcon",
 		BackgroundTransparency = 1,
 		Text = text,
 		Size = size or UDim2.fromOffset(16, 16),
 		Font = Enum.Font.GothamBold,
-		TextColor3 = color or Color3.fromRGB(235, 255, 240),
+		TextColor3 = color or Color3.fromRGB(60, 60, 60),
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextYAlignment = Enum.TextYAlignment.Center,
@@ -426,12 +423,12 @@ local function putFallback(parent, text, size, color)
 	})
 end
 
-local function putIconOrFallback(parent, icon, fallbackText, size, color)
+local function iconOrFallback(parent, icon, fallbackText, size, color)
 	local img = makeIcon(parent, icon, size, color)
 	if img then
 		return img
 	end
-	return putFallback(parent, fallbackText or "?", size, color)
+	return fallbackIcon(parent, fallbackText or "?", size, color)
 end
 
 function SKUI:CreateWindow(config)
@@ -441,6 +438,14 @@ function SKUI:CreateWindow(config)
 	local Subtitle = config.Subtitle or ""
 	local Image = config.Image
 	local SearchBar = config.SearchBar ~= false
+
+	local lightMain = Color3.fromRGB(248, 248, 248)
+	local lightPanel = Color3.fromRGB(255, 255, 255)
+	local lightTop = Color3.fromRGB(242, 242, 242)
+	local darkText = Color3.fromRGB(35, 35, 35)
+	local mutedText = Color3.fromRGB(110, 110, 110)
+	local accent = Color3.fromRGB(85, 200, 120)
+	local accentSoft = Color3.fromRGB(210, 245, 220)
 
 	local screen = create("ScreenGui", {
 		Name = "SKUI_Nexus",
@@ -454,32 +459,31 @@ function SKUI:CreateWindow(config)
 		Name = "Window",
 		Size = UDim2.fromOffset(550, 340),
 		Position = UDim2.new(0.5, -275, 0.5, -170),
-		BackgroundColor3 = Color3.fromRGB(10, 24, 16),
-		BackgroundTransparency = 0.08,
+		BackgroundColor3 = lightMain,
+		BackgroundTransparency = 0.10,
 		BorderSizePixel = 0,
 		Active = true,
 		Parent = screen,
 	})
-	main.ClipsDescendants = false
 	round(main, UDim.new(0, 14))
-	stroke(main, Color3.fromRGB(40, 190, 90), 1, 0.55)
+	stroke(main, Color3.fromRGB(205, 205, 205), 1, 0.35)
 
 	local top = create("Frame", {
 		Name = "TopBar",
 		Size = UDim2.new(1, 0, 0, 46),
-		BackgroundColor3 = Color3.fromRGB(11, 36, 22),
-		BackgroundTransparency = 0.10,
+		BackgroundColor3 = lightTop,
+		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 		Parent = main,
 	})
 	round(top, UDim.new(0, 14))
 
-	local topCover = create("Frame", {
+	create("Frame", {
 		Name = "TopCover",
 		Size = UDim2.new(1, 0, 0, 18),
 		Position = UDim2.new(0, 0, 1, -18),
-		BackgroundColor3 = top.BackgroundColor3,
-		BackgroundTransparency = top.BackgroundTransparency,
+		BackgroundColor3 = lightTop,
+		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 		Parent = top,
 	})
@@ -488,40 +492,40 @@ function SKUI:CreateWindow(config)
 		Name = "LogoHolder",
 		Size = UDim2.fromOffset(26, 26),
 		Position = UDim2.fromOffset(14, 10),
-		BackgroundColor3 = Color3.fromRGB(18, 55, 33),
-		BackgroundTransparency = 0.12,
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.15,
 		BorderSizePixel = 0,
 		Parent = top,
 	})
 	round(iconHolder, UDim.new(0, 8))
-	stroke(iconHolder, Color3.fromRGB(60, 220, 120), 1, 0.7)
+	stroke(iconHolder, accent, 1, 0.55)
 
 	if Image then
-		local logo = putIconOrFallback(iconHolder, Image, "◉", UDim2.fromOffset(18, 18), Color3.fromRGB(115, 255, 170))
+		local logo = iconOrFallback(iconHolder, Image, "◉", UDim2.fromOffset(18, 18), accent)
 		logo.Position = UDim2.new(0.5, -9, 0.5, -9)
 	end
 
-	local titleLabel = create("TextLabel", {
+	create("TextLabel", {
 		Name = "Title",
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(48, 7),
 		Size = UDim2.new(1, -180, 0, 20),
 		Font = Enum.Font.GothamBold,
 		Text = Title,
-		TextColor3 = Color3.fromRGB(210, 255, 225),
+		TextColor3 = darkText,
 		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = top,
 	})
 
-	local subtitleLabel = create("TextLabel", {
+	create("TextLabel", {
 		Name = "Subtitle",
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(48, 23),
 		Size = UDim2.new(1, -180, 0, 16),
 		Font = Enum.Font.Gotham,
 		Text = Subtitle,
-		TextColor3 = Color3.fromRGB(130, 175, 145),
+		TextColor3 = mutedText,
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = top,
@@ -531,16 +535,17 @@ function SKUI:CreateWindow(config)
 		Name = "CloseButton",
 		Size = UDim2.fromOffset(30, 30),
 		Position = UDim2.new(1, -40, 0, 8),
-		BackgroundColor3 = Color3.fromRGB(55, 15, 15),
-		BackgroundTransparency = 0.15,
+		BackgroundColor3 = Color3.fromRGB(245, 245, 245),
+		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 		Text = "",
 		AutoButtonColor = false,
 		Parent = top,
 	})
 	round(closeBtn, UDim.new(0, 8))
-	stroke(closeBtn, Color3.fromRGB(255, 90, 90), 1, 0.65)
-	local closeVisual = putIconOrFallback(closeBtn, "x", "×", UDim2.fromOffset(16, 16), Color3.fromRGB(255, 145, 145))
+	stroke(closeBtn, Color3.fromRGB(220, 220, 220), 1, 0.45)
+
+	local closeVisual = iconOrFallback(closeBtn, "x", "×", UDim2.fromOffset(16, 16), Color3.fromRGB(65, 65, 65))
 	closeVisual.Position = UDim2.new(0.5, -8, 0.5, -8)
 
 	local searchBox
@@ -552,19 +557,20 @@ function SKUI:CreateWindow(config)
 			ClearTextOnFocus = false,
 			Size = UDim2.new(0, 160, 0, 28),
 			Position = UDim2.new(1, -220, 0, 9),
-			BackgroundColor3 = Color3.fromRGB(14, 42, 26),
-			BackgroundTransparency = 0.10,
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.15,
 			BorderSizePixel = 0,
 			Font = Enum.Font.Gotham,
-			TextColor3 = Color3.fromRGB(230, 255, 238),
-			PlaceholderColor3 = Color3.fromRGB(110, 150, 120),
+			TextColor3 = darkText,
+			PlaceholderColor3 = Color3.fromRGB(140, 140, 140),
 			TextSize = 12,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = top,
 		})
 		round(searchBox, UDim.new(0, 8))
-		stroke(searchBox, Color3.fromRGB(55, 190, 100), 1, 0.80)
-		local searchVisual = putIconOrFallback(searchBox, "search", "⌕", UDim2.fromOffset(14, 14), Color3.fromRGB(135, 255, 180))
+		stroke(searchBox, Color3.fromRGB(210, 210, 210), 1, 0.55)
+
+		local searchVisual = iconOrFallback(searchBox, "search", "⌕", UDim2.fromOffset(14, 14), accent)
 		searchVisual.Position = UDim2.new(0, 8, 0.5, -7)
 	end
 
@@ -579,17 +585,17 @@ function SKUI:CreateWindow(config)
 	local tabPanel = create("ScrollingFrame", {
 		Name = "Tabs",
 		Size = UDim2.new(0, 150, 1, 0),
-		BackgroundColor3 = Color3.fromRGB(9, 24, 16),
-		BackgroundTransparency = 0.18,
+		BackgroundColor3 = lightPanel,
+		BackgroundTransparency = 0.20,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 3,
-		ScrollBarImageColor3 = Color3.fromRGB(70, 210, 110),
+		ScrollBarImageColor3 = accent,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
 		Parent = body,
 	})
 	round(tabPanel, UDim.new(0, 12))
-	stroke(tabPanel, Color3.fromRGB(40, 160, 80), 1, 0.82)
+	stroke(tabPanel, Color3.fromRGB(220, 220, 220), 1, 0.45)
 	pad(tabPanel, 10, 10, 10, 10)
 
 	create("UIListLayout", {
@@ -602,13 +608,13 @@ function SKUI:CreateWindow(config)
 		Name = "ElementsPanel",
 		Size = UDim2.new(1, -160, 1, 0),
 		Position = UDim2.new(0, 160, 0, 0),
-		BackgroundColor3 = Color3.fromRGB(7, 19, 13),
-		BackgroundTransparency = 0.24,
+		BackgroundColor3 = lightPanel,
+		BackgroundTransparency = 0.18,
 		BorderSizePixel = 0,
 		Parent = body,
 	})
 	round(rightPanel, UDim.new(0, 12))
-	stroke(rightPanel, Color3.fromRGB(36, 145, 78), 1, 0.88)
+	stroke(rightPanel, Color3.fromRGB(220, 220, 220), 1, 0.45)
 
 	local elementsHolder = create("Frame", {
 		Name = "ElementsHolder",
@@ -618,19 +624,29 @@ function SKUI:CreateWindow(config)
 		Parent = rightPanel,
 	})
 
+	local overlay = create("Frame", {
+		Name = "PopupOverlay",
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		Visible = false,
+		ZIndex = 40,
+		Parent = main,
+	})
+
 	local popup = create("Frame", {
 		Name = "Popup",
 		Size = UDim2.fromOffset(310, 250),
 		Position = UDim2.new(0.5, -155, 0.5, -125),
-		BackgroundColor3 = Color3.fromRGB(10, 29, 18),
-		BackgroundTransparency = 0.04,
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.03,
 		BorderSizePixel = 0,
 		ZIndex = 41,
 		Visible = false,
-		Parent = main,
+		Parent = overlay,
 	})
 	round(popup, UDim.new(0, 12))
-	stroke(popup, Color3.fromRGB(60, 220, 120), 1, 0.65)
+	stroke(popup, Color3.fromRGB(215, 215, 215), 1, 0.4)
 
 	local popupTitle = create("TextLabel", {
 		Name = "Title",
@@ -639,7 +655,7 @@ function SKUI:CreateWindow(config)
 		Position = UDim2.fromOffset(12, 10),
 		Font = Enum.Font.GothamBold,
 		Text = "Dropdown",
-		TextColor3 = Color3.fromRGB(225, 255, 235),
+		TextColor3 = darkText,
 		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 42,
@@ -653,18 +669,18 @@ function SKUI:CreateWindow(config)
 		ClearTextOnFocus = false,
 		Size = UDim2.new(1, -24, 0, 30),
 		Position = UDim2.fromOffset(12, 35),
-		BackgroundColor3 = Color3.fromRGB(16, 45, 28),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 0.10,
 		BorderSizePixel = 0,
 		Font = Enum.Font.Gotham,
 		TextSize = 12,
-		TextColor3 = Color3.fromRGB(235, 255, 240),
-		PlaceholderColor3 = Color3.fromRGB(110, 150, 120),
+		TextColor3 = darkText,
+		PlaceholderColor3 = Color3.fromRGB(145, 145, 145),
 		ZIndex = 42,
 		Parent = popup,
 	})
 	round(popupSearch, UDim.new(0, 8))
-	stroke(popupSearch, Color3.fromRGB(75, 200, 110), 1, 0.85)
+	stroke(popupSearch, Color3.fromRGB(215, 215, 215), 1, 0.5)
 
 	local popupScroll = create("ScrollingFrame", {
 		Name = "Options",
@@ -673,7 +689,7 @@ function SKUI:CreateWindow(config)
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 4,
-		ScrollBarImageColor3 = Color3.fromRGB(60, 200, 100),
+		ScrollBarImageColor3 = accent,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
 		ZIndex = 42,
@@ -690,32 +706,19 @@ function SKUI:CreateWindow(config)
 		Name = "Close",
 		Size = UDim2.fromOffset(26, 26),
 		Position = UDim2.new(1, -34, 0, 8),
-		BackgroundColor3 = Color3.fromRGB(50, 15, 15),
-		BackgroundTransparency = 0.10,
+		BackgroundColor3 = Color3.fromRGB(245, 245, 245),
+		BackgroundTransparency = 0.05,
 		BorderSizePixel = 0,
 		Text = "",
 		ZIndex = 43,
 		Parent = popup,
 	})
 	round(popupClose, UDim.new(0, 8))
-	stroke(popupClose, Color3.fromRGB(255, 90, 90), 1, 0.7)
-	local popupCloseVisual = putIconOrFallback(popupClose, "x", "×", UDim2.fromOffset(14, 14), Color3.fromRGB(255, 145, 145))
+	stroke(popupClose, Color3.fromRGB(220, 220, 220), 1, 0.45)
+	local popupCloseVisual = iconOrFallback(popupClose, "x", "×", UDim2.fromOffset(14, 14), Color3.fromRGB(65, 65, 65))
 	popupCloseVisual.Position = UDim2.new(0.5, -7, 0.5, -7)
 
-	local overlay = create("Frame", {
-		Name = "PopupOverlay",
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 1,
-		Visible = false,
-		ZIndex = 40,
-		Parent = main,
-	})
-	overlay.Active = true
-
 	local floatingBtn
-	local tabObjects = {}
-
 	local window = {
 		ScreenGui = screen,
 		Main = main,
@@ -747,11 +750,11 @@ function SKUI:CreateWindow(config)
 	local function showTab(tab)
 		for _, t in ipairs(window.ActiveTabs) do
 			t.Container.Visible = false
-			t.Button.BackgroundColor3 = Color3.fromRGB(16, 42, 26)
+			t.Button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		end
 
 		tab.Container.Visible = true
-		tab.Button.BackgroundColor3 = Color3.fromRGB(30, 100, 58)
+		tab.Button.BackgroundColor3 = accentSoft
 		window._activeTab = tab
 
 		if searchBox then
@@ -834,8 +837,8 @@ function SKUI:CreateWindow(config)
 			Name = "MinimizeBtn",
 			Size = UDim2.fromOffset(120, 36),
 			Position = UDim2.new(0, 16, 0.5, -18),
-			BackgroundColor3 = Color3.fromRGB(12, 34, 20),
-			BackgroundTransparency = 0.04,
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.05,
 			BorderSizePixel = 0,
 			Text = "",
 			AutoButtonColor = false,
@@ -847,11 +850,11 @@ function SKUI:CreateWindow(config)
 		else
 			round(btn, UDim.new(0, 8))
 		end
-		stroke(btn, Color3.fromRGB(65, 220, 115), 1, 0.72)
+		stroke(btn, Color3.fromRGB(220, 220, 220), 1, 0.45)
 
 		if Img then
-			local icon = putIconOrFallback(btn, Img, "◉", UDim2.fromOffset(18, 18), Color3.fromRGB(130, 255, 180))
-			icon.Position = UDim2.fromOffset(12, 9)
+			local ico = iconOrFallback(btn, Img, "◉", UDim2.fromOffset(18, 18), accent)
+			ico.Position = UDim2.fromOffset(12, 9)
 		end
 
 		create("TextLabel", {
@@ -860,7 +863,7 @@ function SKUI:CreateWindow(config)
 			Size = UDim2.new(1, -(Img and 48 or 18), 1, 0),
 			Font = Enum.Font.GothamBold,
 			Text = Title,
-			TextColor3 = Color3.fromRGB(225, 255, 235),
+			TextColor3 = darkText,
 			TextSize = 13,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = btn,
@@ -881,7 +884,7 @@ function SKUI:CreateWindow(config)
 		local tabBtn = create("TextButton", {
 			Name = tabTitle .. "_Tab",
 			Size = UDim2.new(1, 0, 0, 34),
-			BackgroundColor3 = Color3.fromRGB(16, 42, 26),
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 			BackgroundTransparency = 0.06,
 			BorderSizePixel = 0,
 			Text = "",
@@ -889,12 +892,12 @@ function SKUI:CreateWindow(config)
 			Parent = tabPanel,
 		})
 		round(tabBtn, UDim.new(0, 10))
-		stroke(tabBtn, Color3.fromRGB(50, 180, 95), 1, 0.85)
+		stroke(tabBtn, Color3.fromRGB(220, 220, 220), 1, 0.5)
 
 		if tabIcon then
-			local icon = makeIcon(tabBtn, tabIcon, UDim2.fromOffset(16, 16), Color3.fromRGB(130, 255, 180))
-			if icon then
-				icon.Position = UDim2.fromOffset(10, 9)
+			local ico = makeIcon(tabBtn, tabIcon, UDim2.fromOffset(16, 16), accent)
+			if ico then
+				ico.Position = UDim2.fromOffset(10, 9)
 			end
 		end
 
@@ -904,7 +907,7 @@ function SKUI:CreateWindow(config)
 			Size = UDim2.new(1, -(tabIcon and 40 or 14), 1, 0),
 			Font = Enum.Font.GothamSemibold,
 			Text = tabTitle,
-			TextColor3 = Color3.fromRGB(225, 255, 235),
+			TextColor3 = darkText,
 			TextSize = 13,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = tabBtn,
@@ -917,19 +920,18 @@ function SKUI:CreateWindow(config)
 			BorderSizePixel = 0,
 			Visible = false,
 			ScrollBarThickness = 4,
-			ScrollBarImageColor3 = Color3.fromRGB(60, 200, 100),
+			ScrollBarImageColor3 = accent,
 			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			CanvasSize = UDim2.new(),
 			Parent = elementsHolder,
 		})
+		pad(container, 12, 12, 12, 12)
 
 		create("UIListLayout", {
 			Padding = UDim.new(0, 10),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Parent = container,
 		})
-
-		pad(container, 12, 12, 12, 12)
 
 		local tab = {
 			Title = tabTitle,
@@ -952,30 +954,30 @@ function SKUI:CreateWindow(config)
 			local root = create("TextButton", {
 				Name = "ButtonElement",
 				Size = UDim2.new(1, 0, 0, 34),
-				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
-				BackgroundTransparency = 0.12,
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+				BackgroundTransparency = 0.10,
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
 				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
-			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
+			stroke(root, Color3.fromRGB(220, 220, 220), 1, 0.55)
 
-			local title = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.new(1, -24, 1, 0),
 				Font = Enum.Font.GothamMedium,
 				Text = data.Title or "Button",
-				TextColor3 = Color3.fromRGB(235, 255, 240),
+				TextColor3 = darkText,
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = root,
 			})
 
 			if data.Locked then
-				title.TextTransparency = 0.25
+				root.BackgroundTransparency = 0.20
 			end
 
 			root.MouseButton1Click:Connect(function()
@@ -998,13 +1000,13 @@ function SKUI:CreateWindow(config)
 			local root = create("Frame", {
 				Name = "ToggleElement",
 				Size = UDim2.new(1, 0, 0, 42),
-				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
-				BackgroundTransparency = 0.12,
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+				BackgroundTransparency = 0.10,
 				BorderSizePixel = 0,
 				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
-			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
+			stroke(root, Color3.fromRGB(220, 220, 220), 1, 0.55)
 
 			create("TextLabel", {
 				BackgroundTransparency = 1,
@@ -1012,7 +1014,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.new(1, -70, 0, 18),
 				Font = Enum.Font.GothamMedium,
 				Text = data.Title or "Toggle",
-				TextColor3 = Color3.fromRGB(235, 255, 240),
+				TextColor3 = darkText,
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = root,
@@ -1024,7 +1026,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.new(1, -70, 0, 14),
 				Font = Enum.Font.Gotham,
 				Text = data.Desc or "",
-				TextColor3 = Color3.fromRGB(130, 170, 140),
+				TextColor3 = mutedText,
 				TextSize = 11,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = root,
@@ -1033,7 +1035,7 @@ function SKUI:CreateWindow(config)
 			local switch = create("TextButton", {
 				Size = UDim2.fromOffset(42, 22),
 				Position = UDim2.new(1, -54, 0.5, -11),
-				BackgroundColor3 = state and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(35, 55, 42),
+				BackgroundColor3 = state and accent or Color3.fromRGB(220, 220, 220),
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
@@ -1044,7 +1046,7 @@ function SKUI:CreateWindow(config)
 			local knob = create("Frame", {
 				Size = UDim2.fromOffset(18, 18),
 				Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
-				BackgroundColor3 = Color3.fromRGB(235, 255, 240),
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 				BorderSizePixel = 0,
 				Parent = switch,
 			})
@@ -1053,7 +1055,7 @@ function SKUI:CreateWindow(config)
 			local function setState(v)
 				state = v
 				tween(switch, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundColor3 = state and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(35, 55, 42),
+					BackgroundColor3 = state and accent or Color3.fromRGB(220, 220, 220),
 				}):Play()
 				tween(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
@@ -1082,13 +1084,13 @@ function SKUI:CreateWindow(config)
 			local root = create("Frame", {
 				Name = "InputElement",
 				Size = UDim2.new(1, 0, 0, 52),
-				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
-				BackgroundTransparency = 0.12,
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+				BackgroundTransparency = 0.10,
 				BorderSizePixel = 0,
 				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
-			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
+			stroke(root, Color3.fromRGB(220, 220, 220), 1, 0.55)
 
 			create("TextLabel", {
 				BackgroundTransparency = 1,
@@ -1096,7 +1098,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.new(1, -24, 0, 16),
 				Font = Enum.Font.GothamMedium,
 				Text = data.Title or "Input",
-				TextColor3 = Color3.fromRGB(235, 255, 240),
+				TextColor3 = darkText,
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = root,
@@ -1108,17 +1110,17 @@ function SKUI:CreateWindow(config)
 				ClearTextOnFocus = false,
 				Size = UDim2.new(1, -24, 0, 24),
 				Position = UDim2.fromOffset(12, 24),
-				BackgroundColor3 = Color3.fromRGB(16, 45, 28),
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 				BackgroundTransparency = 0.08,
 				BorderSizePixel = 0,
 				Font = Enum.Font.Gotham,
-				TextColor3 = Color3.fromRGB(240, 255, 242),
-				PlaceholderColor3 = Color3.fromRGB(110, 150, 120),
+				TextColor3 = darkText,
+				PlaceholderColor3 = Color3.fromRGB(145, 145, 145),
 				TextSize = 12,
 				Parent = root,
 			})
 			round(box, UDim.new(0, 8))
-			stroke(box, Color3.fromRGB(60, 190, 110), 1, 0.88)
+			stroke(box, Color3.fromRGB(220, 220, 220), 1, 0.55)
 
 			box.FocusLost:Connect(function()
 				if data.Callback then
@@ -1132,25 +1134,22 @@ function SKUI:CreateWindow(config)
 
 		function tab:CreateSlider(data)
 			data = data or {}
-
 			local min = (data.Value and data.Value.Min) or 0
 			local max = (data.Value and data.Value.Max) or 100
 			local value = (data.Value and data.Value.Default) or min
 			local step = tonumber(data.Step) or 1
-			if step <= 0 then
-				step = 1
-			end
+			if step <= 0 then step = 1 end
 
 			local root = create("Frame", {
 				Name = "SliderElement",
 				Size = UDim2.new(1, 0, 0, 52),
-				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
-				BackgroundTransparency = 0.12,
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+				BackgroundTransparency = 0.10,
 				BorderSizePixel = 0,
 				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
-			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
+			stroke(root, Color3.fromRGB(220, 220, 220), 1, 0.55)
 
 			create("TextLabel", {
 				BackgroundTransparency = 1,
@@ -1158,7 +1157,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.new(1, -70, 0, 16),
 				Font = Enum.Font.GothamMedium,
 				Text = data.Title or "Slider",
-				TextColor3 = Color3.fromRGB(235, 255, 240),
+				TextColor3 = darkText,
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = root,
@@ -1170,7 +1169,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.fromOffset(40, 16),
 				Font = Enum.Font.Gotham,
 				Text = tostring(value),
-				TextColor3 = Color3.fromRGB(140, 255, 175),
+				TextColor3 = accent,
 				TextSize = 12,
 				TextXAlignment = Enum.TextXAlignment.Right,
 				Parent = root,
@@ -1179,7 +1178,7 @@ function SKUI:CreateWindow(config)
 			local track = create("Frame", {
 				Size = UDim2.new(1, -24, 0, 8),
 				Position = UDim2.fromOffset(12, 32),
-				BackgroundColor3 = Color3.fromRGB(25, 55, 36),
+				BackgroundColor3 = Color3.fromRGB(230, 230, 230),
 				BorderSizePixel = 0,
 				Parent = root,
 			})
@@ -1187,7 +1186,7 @@ function SKUI:CreateWindow(config)
 
 			local fill = create("Frame", {
 				Size = UDim2.new(0, 0, 1, 0),
-				BackgroundColor3 = Color3.fromRGB(55, 200, 105),
+				BackgroundColor3 = accent,
 				BorderSizePixel = 0,
 				Parent = track,
 			})
@@ -1195,7 +1194,7 @@ function SKUI:CreateWindow(config)
 
 			local knob = create("Frame", {
 				Size = UDim2.fromOffset(14, 14),
-				BackgroundColor3 = Color3.fromRGB(235, 255, 240),
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 				BorderSizePixel = 0,
 				Parent = track,
 			})
@@ -1245,7 +1244,6 @@ function SKUI:CreateWindow(config)
 
 			setValue(value)
 			addItem(root, data.Title or "Slider")
-
 			return {
 				Set = setValue,
 				Get = function()
@@ -1262,15 +1260,15 @@ function SKUI:CreateWindow(config)
 			local root = create("TextButton", {
 				Name = "DropdownElement",
 				Size = UDim2.new(1, 0, 0, 36),
-				BackgroundColor3 = Color3.fromRGB(13, 34, 21),
-				BackgroundTransparency = 0.12,
+				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+				BackgroundTransparency = 0.10,
 				BorderSizePixel = 0,
 				Text = "",
 				AutoButtonColor = false,
 				Parent = container,
 			})
 			round(root, UDim.new(0, 10))
-			stroke(root, Color3.fromRGB(50, 170, 90), 1, 0.9)
+			stroke(root, Color3.fromRGB(220, 220, 220), 1, 0.55)
 
 			create("TextLabel", {
 				BackgroundTransparency = 1,
@@ -1278,7 +1276,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.new(1, -44, 1, 0),
 				Font = Enum.Font.GothamMedium,
 				Text = data.Title or "Dropdown",
-				TextColor3 = Color3.fromRGB(235, 255, 240),
+				TextColor3 = darkText,
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = root,
@@ -1290,7 +1288,7 @@ function SKUI:CreateWindow(config)
 				Size = UDim2.fromOffset(110, 36),
 				Font = Enum.Font.Gotham,
 				Text = tostring(selected),
-				TextColor3 = Color3.fromRGB(145, 255, 185),
+				TextColor3 = accent,
 				TextSize = 12,
 				TextXAlignment = Enum.TextXAlignment.Right,
 				Parent = root,
@@ -1302,12 +1300,13 @@ function SKUI:CreateWindow(config)
 				Position = UDim2.new(1, -24, 0.5, -10),
 				Font = Enum.Font.GothamBold,
 				Text = "▾",
-				TextColor3 = Color3.fromRGB(145, 255, 185),
+				TextColor3 = accent,
 				TextSize = 16,
 				Parent = root,
 			})
 
 			local dropdown = {}
+
 			local function refreshList(filterText)
 				filterText = string.lower(filterText or "")
 
@@ -1322,19 +1321,19 @@ function SKUI:CreateWindow(config)
 					if filterText == "" or string.find(string.lower(str), filterText, 1, true) then
 						local opt = create("TextButton", {
 							Size = UDim2.new(1, 0, 0, 30),
-							BackgroundColor3 = Color3.fromRGB(14, 39, 24),
-							BackgroundTransparency = 0.10,
+							BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+							BackgroundTransparency = 0.08,
 							BorderSizePixel = 0,
 							Text = str,
 							Font = Enum.Font.Gotham,
 							TextSize = 12,
-							TextColor3 = Color3.fromRGB(235, 255, 240),
+							TextColor3 = darkText,
 							AutoButtonColor = false,
 							ZIndex = 42,
 							Parent = popupScroll,
 						})
 						round(opt, UDim.new(0, 8))
-						stroke(opt, Color3.fromRGB(50, 170, 90), 1, 0.9)
+						stroke(opt, Color3.fromRGB(220, 220, 220), 1, 0.55)
 
 						opt.MouseButton1Click:Connect(function()
 							selected = str
@@ -1395,7 +1394,6 @@ function SKUI:CreateWindow(config)
 		end
 
 		table.insert(window.ActiveTabs, tab)
-
 		if #window.ActiveTabs == 1 then
 			showTab(tab)
 		end
