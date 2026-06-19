@@ -1,4 +1,10 @@
---// SKUI White Nexus Hub + Fixed Floating Minimize Drag + Icon Support
+--// SKUI Clean White Hub
+--// Draggable main window
+--// Draggable floating minimize button
+--// Transparency 0.6 for both
+--// Square / Circle only
+--// Real icon support
+--// Arrow indicator on action buttons
 
 local cloneref = (cloneref or clonereference or function(instance)
 	return instance
@@ -33,18 +39,12 @@ end
 local function safeLoadPack(url)
 	local src = Get(url)
 	if src == "" then
-		return {
-			Icons = {},
-			Spritesheets = {},
-		}
+		return { Icons = {}, Spritesheets = {} }
 	end
 
 	local fn = loadstring(src)
 	if not fn then
-		return {
-			Icons = {},
-			Spritesheets = {},
-		}
+		return { Icons = {}, Spritesheets = {} }
 	end
 
 	local ok, result = pcall(fn)
@@ -63,10 +63,7 @@ local function safeLoadPack(url)
 		end
 	end
 
-	return {
-		Icons = {},
-		Spritesheets = {},
-	}
+	return { Icons = {}, Spritesheets = {} }
 end
 
 local IconModule = {
@@ -163,28 +160,23 @@ function IconModule.Icon(Icon, Type, DefaultFormat)
 
 	local iconType, iconName = parseIconString(Icon)
 	local targetType = iconType or Type or IconModule.IconsType
-	local targetName = iconName
-
 	local iconSet = IconModule.Icons[targetType]
 	if not iconSet then
 		return nil
 	end
 
-	if iconSet.Icons and iconSet.Icons[targetName] then
-		local data = iconSet.Icons[targetName]
+	if iconSet.Icons and iconSet.Icons[iconName] then
+		local data = iconSet.Icons[iconName]
 		local sprite = (iconSet.Spritesheets and iconSet.Spritesheets[tostring(data.Image)]) or data.Image
-		return {
-			sprite,
-			data,
-		}
-	elseif iconSet[targetName] and type(iconSet[targetName]) == "string" and iconSet[targetName]:find("rbxassetid://") then
+		return { sprite, data }
+	elseif iconSet[iconName] and type(iconSet[iconName]) == "string" and iconSet[iconName]:find("rbxassetid://") then
 		return DefaultFormat and {
-			iconSet[targetName],
+			iconSet[iconName],
 			{
 				ImageRectSize = Vector2.new(0, 0),
 				ImageRectPosition = Vector2.new(0, 0),
 			},
-		} or iconSet[targetName]
+		} or iconSet[iconName]
 	end
 
 	return nil
@@ -196,99 +188,6 @@ end
 
 function IconModule.Icon2(Icon, Type, DefaultFormat)
 	return IconModule.Icon(Icon, Type, DefaultFormat)
-end
-
-function IconModule.Image(IconConfig)
-	IconConfig = IconConfig or {}
-
-	local Icon = {
-		Icon = IconConfig.Icon or nil,
-		Type = IconConfig.Type,
-		Colors = IconConfig.Colors or { (IconModule.IconThemeTag or Color3.new(1, 1, 1)), Color3.new(1, 1, 1) },
-		Size = IconConfig.Size or UDim2.new(0, 24, 0, 24),
-		IconFrame = nil,
-	}
-
-	local Colors = {}
-	for index, color in next, Icon.Colors do
-		Colors[index] = {
-			ThemeTag = typeof(color) == "string" and color or nil,
-			Color = typeof(color) == "Color3" and color or nil,
-		}
-	end
-
-	local IconLabel = IconModule.Icon2(Icon.Icon, Icon.Type, true)
-	if not IconLabel then
-		return nil
-	end
-
-	local isrbxassetid = typeof(IconLabel) == "string" and IconLabel:find("rbxassetid://")
-
-	if IconModule.New then
-		local New = IconModule.New
-
-		local IconFrame = New("ImageLabel", {
-			Size = Icon.Size,
-			BackgroundTransparency = 1,
-			ImageColor3 = Colors[1].Color or nil,
-			ThemeTag = Colors[1].ThemeTag and {
-				ImageColor3 = Colors[1].ThemeTag,
-			},
-			Image = isrbxassetid and IconLabel or IconLabel[1],
-			ImageRectSize = isrbxassetid and nil or IconLabel[2].ImageRectSize,
-			ImageRectOffset = isrbxassetid and nil or (IconLabel[2].ImageRectPosition or IconLabel[2].ImageRectOffset),
-		})
-
-		if not isrbxassetid and IconLabel[2].Parts then
-			for i, part in next, IconLabel[2].Parts do
-				local IconPartLabel = IconModule.Icon(part, Icon.Type, true)
-				if IconPartLabel then
-					New("ImageLabel", {
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						ImageColor3 = (Colors[i + 1] and Colors[i + 1].Color) or nil,
-						ThemeTag = (Colors[i + 1] and Colors[i + 1].ThemeTag) and {
-							ImageColor3 = Colors[i + 1].ThemeTag,
-						},
-						Image = typeof(IconPartLabel) == "string" and IconPartLabel or IconPartLabel[1],
-						ImageRectSize = typeof(IconPartLabel) == "string" and nil or IconPartLabel[2].ImageRectSize,
-						ImageRectOffset = typeof(IconPartLabel) == "string" and nil or (IconPartLabel[2].ImageRectPosition or IconPartLabel[2].ImageRectOffset),
-						Parent = IconFrame,
-					})
-				end
-			end
-		end
-
-		Icon.IconFrame = IconFrame
-	else
-		local IconFrame = Instance.new("ImageLabel")
-		IconFrame.Size = Icon.Size
-		IconFrame.BackgroundTransparency = 1
-		IconFrame.ImageColor3 = Colors[1].Color or Color3.new(1, 1, 1)
-		IconFrame.Image = isrbxassetid and IconLabel or IconLabel[1]
-		IconFrame.ImageRectSize = isrbxassetid and nil or IconLabel[2].ImageRectSize
-		IconFrame.ImageRectOffset = isrbxassetid and nil or (IconLabel[2].ImageRectPosition or IconLabel[2].ImageRectOffset)
-
-		if not isrbxassetid and IconLabel[2].Parts then
-			for i, part in next, IconLabel[2].Parts do
-				local IconPartLabel = IconModule.Icon(part, Icon.Type, true)
-				if IconPartLabel then
-					local IconPart = Instance.new("ImageLabel")
-					IconPart.Size = UDim2.new(1, 0, 1, 0)
-					IconPart.BackgroundTransparency = 1
-					IconPart.ImageColor3 = (Colors[i + 1] and Colors[i + 1].Color) or Color3.new(1, 1, 1)
-					IconPart.Image = typeof(IconPartLabel) == "string" and IconPartLabel or IconPartLabel[1]
-					IconPart.ImageRectSize = typeof(IconPartLabel) == "string" and nil or IconPartLabel[2].ImageRectSize
-					IconPart.ImageRectOffset = typeof(IconPartLabel) == "string" and nil or (IconPartLabel[2].ImageRectPosition or IconPartLabel[2].ImageRectOffset)
-					IconPart.Parent = IconFrame
-				end
-			end
-		end
-
-		Icon.IconFrame = IconFrame
-	end
-
-	return Icon
 end
 
 local SKUI = {}
@@ -452,7 +351,7 @@ function SKUI:CreateWindow(config)
 		Size = UDim2.fromOffset(550, 340),
 		Position = UDim2.new(0.5, -275, 0.5, -170),
 		BackgroundColor3 = lightMain,
-		BackgroundTransparency = 0.10,
+		BackgroundTransparency = 0.6,
 		BorderSizePixel = 0,
 		Active = true,
 		Parent = screen,
@@ -561,7 +460,6 @@ function SKUI:CreateWindow(config)
 		})
 		round(searchBox, UDim.new(0, 8))
 		stroke(searchBox, Color3.fromRGB(210, 210, 210), 1, 0.55)
-
 		pad(searchBox, 28, 8, 0, 0)
 
 		local searchVisual = iconOrFallback(searchBox, "search", "⌕", UDim2.fromOffset(14, 14), accent)
@@ -782,7 +680,6 @@ function SKUI:CreateWindow(config)
 				dragging = true
 				dragStart = input.Position
 				startPos = main.Position
-
 				input.Changed:Connect(function()
 					if input.UserInputState == Enum.UserInputState.End then
 						dragging = false
@@ -837,7 +734,7 @@ function SKUI:CreateWindow(config)
 			Size = UDim2.fromOffset(120, 36),
 			Position = UDim2.new(0, 16, 0.5, -18),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 1,
+			BackgroundTransparency = 0.6,
 			BorderSizePixel = 0,
 			Text = "",
 			AutoButtonColor = false,
@@ -850,6 +747,8 @@ function SKUI:CreateWindow(config)
 		else
 			round(btn, UDim.new(0, 8))
 		end
+
+		stroke(btn, Color3.fromRGB(220, 220, 220), 1, 0.45)
 
 		if Img then
 			local ico = iconOrFallback(btn, Img, "◉", UDim2.fromOffset(18, 18), accent)
@@ -888,7 +787,6 @@ function SKUI:CreateWindow(config)
 				dragging = true
 				dragStart = input.Position
 				startPos = btn.Position
-
 				input.Changed:Connect(function()
 					if input.UserInputState == Enum.UserInputState.End then
 						dragging = false
@@ -1007,7 +905,7 @@ function SKUI:CreateWindow(config)
 			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 0),
-				Size = UDim2.new(1, -24, 1, 0),
+				Size = UDim2.new(1, -42, 1, 0),
 				Font = Enum.Font.GothamMedium,
 				Text = data.Title or "Button",
 				TextColor3 = darkText,
@@ -1015,6 +913,9 @@ function SKUI:CreateWindow(config)
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = root,
 			})
+
+			local arrow = iconOrFallback(root, "chevron-right", "›", UDim2.fromOffset(12, 12), accent)
+			arrow.Position = UDim2.new(1, -18, 0.5, -6)
 
 			if data.Locked then
 				root.BackgroundTransparency = 0.20
@@ -1178,9 +1079,7 @@ function SKUI:CreateWindow(config)
 			local max = (data.Value and data.Value.Max) or 100
 			local value = (data.Value and data.Value.Default) or min
 			local step = tonumber(data.Step) or 1
-			if step <= 0 then
-				step = 1
-			end
+			if step <= 0 then step = 1 end
 
 			local root = create("Frame", {
 				Name = "SliderElement",
@@ -1447,5 +1346,4 @@ function SKUI:CreateWindow(config)
 	return window
 end
 
-SKUI.IconModule = IconModule
 return SKUI
