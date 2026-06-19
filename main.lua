@@ -1,10 +1,14 @@
---// SKUI Clean White Hub
---// Draggable main window
---// Draggable floating minimize button
---// Transparency 0.6 for both
---// Square / Circle only
---// Real icon support
---// Arrow indicator on action buttons
+--// SKUI Clean White Hub + Notify
+--// Features:
+--// draggable window
+--// draggable floating button
+--// square/circle floating button
+--// transparent window and floating button (0.6)
+--// icon support for names and rbxassetid
+--// tab image support
+--// arrow on action buttons
+--// dropdown popup with search
+--// Library:Notify({ Title, Content, Duration, Icon })
 
 local cloneref = (cloneref or clonereference or function(instance)
 	return instance
@@ -190,10 +194,10 @@ function IconModule.Icon2(Icon, Type, DefaultFormat)
 	return IconModule.Icon(Icon, Type, DefaultFormat)
 end
 
-local SKUI = {}
-SKUI.IconModule = IconModule
+local Library = {}
+Library.IconModule = IconModule
 
-function SKUI:SetIconModule(module)
+function Library:SetIconModule(module)
 	if type(module) == "table" then
 		self.IconModule = module
 	end
@@ -258,7 +262,7 @@ local function resolveIcon(icon)
 			return icon, nil
 		end
 
-		local provider = SKUI.IconModule or IconModule
+		local provider = Library.IconModule or IconModule
 		if provider and provider.Icon then
 			local ok, result = pcall(function()
 				return provider.Icon(icon, nil, true)
@@ -322,7 +326,124 @@ local function iconOrFallback(parent, icon, fallbackText, size, color)
 	})
 end
 
-function SKUI:CreateWindow(config)
+function Library:Notify(config)
+	config = config or {}
+
+	local Title = config.Title or "Notification"
+	local Content = config.Content or ""
+	local Duration = tonumber(config.Duration) or 3
+	local Icon = config.Icon
+
+	local gui = self._notifyGui
+	if not gui then
+		gui = create("ScreenGui", {
+			Name = "SKUI_Notifications",
+			ResetOnSpawn = false,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			IgnoreGuiInset = true,
+			Parent = getGuiParent(),
+		})
+
+		local holder = create("Frame", {
+			Name = "Holder",
+			BackgroundTransparency = 1,
+			Size = UDim2.new(0, 320, 1, -20),
+			Position = UDim2.new(1, -334, 0, 10),
+			Parent = gui,
+		})
+
+		local list = create("UIListLayout", {
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Top,
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			Padding = UDim.new(0, 8),
+			Parent = holder,
+		})
+
+		self._notifyGui = gui
+		self._notifyHolder = holder
+	end
+
+	local card = create("Frame", {
+		Name = "Notification",
+		Size = UDim2.fromOffset(320, 76),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.08,
+		BorderSizePixel = 0,
+		Parent = self._notifyHolder,
+	})
+	round(card, UDim.new(0, 12))
+	stroke(card, Color3.fromRGB(220, 220, 220), 1, 0.45)
+
+	local iconHolder = create("Frame", {
+		Name = "IconHolder",
+		Size = UDim2.fromOffset(38, 38),
+		Position = UDim2.fromOffset(14, 19),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.10,
+		BorderSizePixel = 0,
+		Parent = card,
+	})
+	round(iconHolder, UDim.new(0, 10))
+	stroke(iconHolder, Color3.fromRGB(220, 220, 220), 1, 0.5)
+
+	local visual = iconOrFallback(iconHolder, Icon, "!", UDim2.fromOffset(22, 22), Color3.fromRGB(85, 200, 120))
+	visual.Position = UDim2.new(0.5, -11, 0.5, -11)
+
+	create("TextLabel", {
+		Name = "Title",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(62, 12),
+		Size = UDim2.new(1, -74, 0, 20),
+		Font = Enum.Font.GothamBold,
+		Text = Title,
+		TextColor3 = Color3.fromRGB(35, 35, 35),
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = card,
+	})
+
+	create("TextLabel", {
+		Name = "Content",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(62, 33),
+		Size = UDim2.new(1, -74, 0, 30),
+		Font = Enum.Font.Gotham,
+		Text = Content,
+		TextColor3 = Color3.fromRGB(110, 110, 110),
+		TextSize = 12,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		Parent = card,
+	})
+
+	card.BackgroundTransparency = 1
+	card.Position = UDim2.new(1, 20, 0, 0)
+
+	tween(card, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.08,
+		Position = UDim2.new(0, 0, 0, 0),
+	}):Play()
+
+	task.delay(Duration, function()
+		if card and card.Parent then
+			local out = tween(card, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, 20, 0, 0),
+			})
+			out:Play()
+			out.Completed:Wait()
+			if card and card.Parent then
+				card:Destroy()
+			end
+		end
+	end)
+
+	return card
+end
+
+function Library:CreateWindow(config)
 	config = config or {}
 
 	local Title = config.Title or "SKUI"
@@ -435,7 +556,6 @@ function SKUI:CreateWindow(config)
 	})
 	round(closeBtn, UDim.new(0, 8))
 	stroke(closeBtn, Color3.fromRGB(220, 220, 220), 1, 0.45)
-
 	local closeVisual = iconOrFallback(closeBtn, "x", "×", UDim2.fromOffset(16, 16), Color3.fromRGB(65, 65, 65))
 	closeVisual.Position = UDim2.new(0.5, -8, 0.5, -8)
 
@@ -461,7 +581,6 @@ function SKUI:CreateWindow(config)
 		round(searchBox, UDim.new(0, 8))
 		stroke(searchBox, Color3.fromRGB(210, 210, 210), 1, 0.55)
 		pad(searchBox, 28, 8, 0, 0)
-
 		local searchVisual = iconOrFallback(searchBox, "search", "⌕", UDim2.fromOffset(14, 14), accent)
 		searchVisual.Position = UDim2.new(0, 8, 0.5, -7)
 	end
@@ -575,7 +694,6 @@ function SKUI:CreateWindow(config)
 	round(popupSearch, UDim.new(0, 8))
 	stroke(popupSearch, Color3.fromRGB(215, 215, 215), 1, 0.5)
 	pad(popupSearch, 28, 8, 0, 0)
-
 	local popupSearchVisual = iconOrFallback(popupSearch, "search", "⌕", UDim2.fromOffset(14, 14), accent)
 	popupSearchVisual.Position = UDim2.new(0, 8, 0.5, -7)
 
@@ -667,12 +785,7 @@ function SKUI:CreateWindow(config)
 
 		local function update(input)
 			local delta = input.Position - dragStart
-			main.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
+			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
 
 		top.InputBegan:Connect(function(input)
@@ -717,7 +830,6 @@ function SKUI:CreateWindow(config)
 
 	function window:CreateMinimizeBtn(config)
 		config = config or {}
-		local Title = config.Title or "Open UI"
 		local Img = config.Image
 		local Shape = config.Shape or "Square"
 
@@ -731,7 +843,7 @@ function SKUI:CreateWindow(config)
 
 		local btn = create("TextButton", {
 			Name = "MinimizeBtn",
-			Size = UDim2.fromOffset(120, 36),
+			Size = UDim2.fromOffset(36, 36),
 			Position = UDim2.new(0, 16, 0.5, -18),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 			BackgroundTransparency = 0.6,
@@ -745,27 +857,17 @@ function SKUI:CreateWindow(config)
 		if Shape == "Circle" then
 			round(btn, UDim.new(1, 0))
 		else
-			round(btn, UDim.new(0, 8))
+			round(btn, UDim.new(0, 0))
 		end
 
 		stroke(btn, Color3.fromRGB(220, 220, 220), 1, 0.45)
 
-		if Img then
-			local ico = iconOrFallback(btn, Img, "◉", UDim2.fromOffset(18, 18), accent)
-			ico.Position = UDim2.fromOffset(12, 9)
+		local icon = iconOrFallback(btn, Img or "home", "◉", UDim2.new(1, 0, 1, 0), accent)
+		icon.Position = UDim2.new(0, 0, 0, 0)
+		icon.Size = UDim2.new(1, 0, 1, 0)
+		if icon:IsA("ImageLabel") then
+			icon.ScaleType = Enum.ScaleType.Fit
 		end
-
-		create("TextLabel", {
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0, Img and 38 or 14, 0, 0),
-			Size = UDim2.new(1, -(Img and 48 or 18), 1, 0),
-			Font = Enum.Font.GothamBold,
-			Text = Title,
-			TextColor3 = darkText,
-			TextSize = 13,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = btn,
-		})
 
 		local dragStart
 		local startPos
@@ -774,12 +876,7 @@ function SKUI:CreateWindow(config)
 
 		local function update(input)
 			local delta = input.Position - dragStart
-			btn.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
+			btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
 
 		btn.InputBegan:Connect(function(input)
@@ -1242,7 +1339,6 @@ function SKUI:CreateWindow(config)
 
 			local function refreshList(filterText)
 				filterText = string.lower(filterText or "")
-
 				for _, c in ipairs(popupScroll:GetChildren()) do
 					if c:IsA("TextButton") then
 						c:Destroy()
@@ -1323,6 +1419,23 @@ function SKUI:CreateWindow(config)
 			return dropdown
 		end
 
+		function tab:CreateLabel(data)
+			data = data or {}
+			local root = create("TextLabel", {
+				Name = "LabelElement",
+				Size = UDim2.new(1, 0, 0, 22),
+				BackgroundTransparency = 1,
+				Font = Enum.Font.Gotham,
+				Text = data.Text or "",
+				TextColor3 = darkText,
+				TextSize = 12,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = container,
+			})
+			addItem(root, data.Text or "Label")
+			return root
+		end
+
 		table.insert(window.ActiveTabs, tab)
 		if #window.ActiveTabs == 1 then
 			showTab(tab)
@@ -1343,7 +1456,11 @@ function SKUI:CreateWindow(config)
 		end)
 	end
 
+	function window:Notify(config)
+		return Library:Notify(config)
+	end
+
 	return window
 end
 
-return SKUI
+return Library
