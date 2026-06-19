@@ -1,9 +1,4 @@
---// SKUI White Nexus Hub + Fixed Icon Support
---// API:
---// local SKUI = loadstring(game:HttpGet("..."))()
---// local Window = SKUI:CreateWindow({...})
---// local MinimizeBtn = Window:CreateMinimizeBtn({...})
---// local Tab = Window:CreateTab({ "Main", "home" })
+--// SKUI White Nexus Hub + Fixed Floating Minimize Drag + Icon Support
 
 local cloneref = (cloneref or clonereference or function(instance)
 	return instance
@@ -322,7 +317,7 @@ end
 
 local function stroke(obj, color, thickness, transparency)
 	create("UIStroke", {
-		Color = color or Color3.fromRGB(170, 170, 170),
+		Color = color or Color3.fromRGB(180, 180, 180),
 		Thickness = thickness or 1,
 		Transparency = transparency or 0.25,
 		Parent = obj,
@@ -408,11 +403,16 @@ local function makeIcon(parent, icon, size, tint)
 	return img
 end
 
-local function fallbackIcon(parent, text, size, color)
+local function iconOrFallback(parent, icon, fallbackText, size, color)
+	local img = makeIcon(parent, icon, size, color)
+	if img then
+		return img
+	end
+
 	return create("TextLabel", {
 		Name = "FallbackIcon",
 		BackgroundTransparency = 1,
-		Text = text,
+		Text = fallbackText or "?",
 		Size = size or UDim2.fromOffset(16, 16),
 		Font = Enum.Font.GothamBold,
 		TextColor3 = color or Color3.fromRGB(60, 60, 60),
@@ -421,14 +421,6 @@ local function fallbackIcon(parent, text, size, color)
 		TextYAlignment = Enum.TextYAlignment.Center,
 		Parent = parent,
 	})
-end
-
-local function iconOrFallback(parent, icon, fallbackText, size, color)
-	local img = makeIcon(parent, icon, size, color)
-	if img then
-		return img
-	end
-	return fallbackIcon(parent, fallbackText or "?", size, color)
 end
 
 function SKUI:CreateWindow(config)
@@ -570,6 +562,8 @@ function SKUI:CreateWindow(config)
 		round(searchBox, UDim.new(0, 8))
 		stroke(searchBox, Color3.fromRGB(210, 210, 210), 1, 0.55)
 
+		pad(searchBox, 28, 8, 0, 0)
+
 		local searchVisual = iconOrFallback(searchBox, "search", "⌕", UDim2.fromOffset(14, 14), accent)
 		searchVisual.Position = UDim2.new(0, 8, 0.5, -7)
 	end
@@ -676,11 +670,16 @@ function SKUI:CreateWindow(config)
 		TextSize = 12,
 		TextColor3 = darkText,
 		PlaceholderColor3 = Color3.fromRGB(145, 145, 145),
+		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 42,
 		Parent = popup,
 	})
 	round(popupSearch, UDim.new(0, 8))
 	stroke(popupSearch, Color3.fromRGB(215, 215, 215), 1, 0.5)
+	pad(popupSearch, 28, 8, 0, 0)
+
+	local popupSearchVisual = iconOrFallback(popupSearch, "search", "⌕", UDim2.fromOffset(14, 14), accent)
+	popupSearchVisual.Position = UDim2.new(0, 8, 0.5, -7)
 
 	local popupScroll = create("ScrollingFrame", {
 		Name = "Options",
@@ -718,7 +717,7 @@ function SKUI:CreateWindow(config)
 	local popupCloseVisual = iconOrFallback(popupClose, "x", "×", UDim2.fromOffset(14, 14), Color3.fromRGB(65, 65, 65))
 	popupCloseVisual.Position = UDim2.new(0.5, -7, 0.5, -7)
 
-	local floatingBtn
+	local floatingGui
 	local window = {
 		ScreenGui = screen,
 		Main = main,
@@ -809,8 +808,8 @@ function SKUI:CreateWindow(config)
 		if screen then
 			screen:Destroy()
 		end
-		if floatingBtn then
-			floatingBtn:Destroy()
+		if floatingGui then
+			floatingGui:Destroy()
 		end
 	end)
 
@@ -838,10 +837,11 @@ function SKUI:CreateWindow(config)
 			Size = UDim2.fromOffset(120, 36),
 			Position = UDim2.new(0, 16, 0.5, -18),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 0.05,
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Text = "",
 			AutoButtonColor = false,
+			Active = true,
 			Parent = gui,
 		})
 
@@ -850,7 +850,6 @@ function SKUI:CreateWindow(config)
 		else
 			round(btn, UDim.new(0, 8))
 		end
-		stroke(btn, Color3.fromRGB(220, 220, 220), 1, 0.45)
 
 		if Img then
 			local ico = iconOrFallback(btn, Img, "◉", UDim2.fromOffset(18, 18), accent)
@@ -869,11 +868,52 @@ function SKUI:CreateWindow(config)
 			Parent = btn,
 		})
 
+		local dragStart
+		local startPos
+		local dragInput
+		local dragging = false
+
+		local function update(input)
+			local delta = input.Position - dragStart
+			btn.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+
+		btn.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				dragStart = input.Position
+				startPos = btn.Position
+
+				input.Changed:Connect(function()
+					if input.UserInputState == Enum.UserInputState.End then
+						dragging = false
+					end
+				end)
+			end
+		end)
+
+		btn.InputChanged:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+				dragInput = input
+			end
+		end)
+
+		UserInputService.InputChanged:Connect(function(input)
+			if dragging and dragInput and input == dragInput and dragStart then
+				update(input)
+			end
+		end)
+
 		btn.MouseButton1Click:Connect(function()
 			main.Visible = not main.Visible
 		end)
 
-		floatingBtn = gui
+		floatingGui = gui
 		return btn
 	end
 
@@ -1138,7 +1178,9 @@ function SKUI:CreateWindow(config)
 			local max = (data.Value and data.Value.Max) or 100
 			local value = (data.Value and data.Value.Default) or min
 			local step = tonumber(data.Step) or 1
-			if step <= 0 then step = 1 end
+			if step <= 0 then
+				step = 1
+			end
 
 			local root = create("Frame", {
 				Name = "SliderElement",
@@ -1273,7 +1315,7 @@ function SKUI:CreateWindow(config)
 			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.fromOffset(12, 0),
-				Size = UDim2.new(1, -44, 1, 0),
+				Size = UDim2.new(1, -56, 1, 0),
 				Font = Enum.Font.GothamMedium,
 				Text = data.Title or "Dropdown",
 				TextColor3 = darkText,
@@ -1294,16 +1336,8 @@ function SKUI:CreateWindow(config)
 				Parent = root,
 			})
 
-			local arrow = create("TextLabel", {
-				BackgroundTransparency = 1,
-				Size = UDim2.fromOffset(20, 20),
-				Position = UDim2.new(1, -24, 0.5, -10),
-				Font = Enum.Font.GothamBold,
-				Text = "▾",
-				TextColor3 = accent,
-				TextSize = 16,
-				Parent = root,
-			})
+			local clickIcon = iconOrFallback(root, "chevron-down", "▾", UDim2.fromOffset(14, 14), accent)
+			clickIcon.Position = UDim2.new(1, -22, 0.5, -7)
 
 			local dropdown = {}
 
@@ -1358,11 +1392,8 @@ function SKUI:CreateWindow(config)
 			end
 
 			root.MouseButton1Click:Connect(openDropdown)
-			arrow.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					openDropdown()
-				end
-			end)
+			clickIcon.Parent = root
+			clickIcon.ZIndex = root.ZIndex + 1
 
 			popupSearch:GetPropertyChangedSignal("Text"):Connect(function()
 				if popup.Visible then
