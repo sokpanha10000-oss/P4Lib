@@ -1,14 +1,5 @@
---// SKUI Clean White Hub + Notify
---// Features:
---// draggable window
---// draggable floating button
---// square/circle floating button
---// transparent window and floating button (0.6)
---// icon support for names and rbxassetid
---// tab image support
---// arrow on action buttons
---// dropdown popup with search
---// Library:Notify({ Title, Content, Duration, Icon })
+--// SKUI Clean White Hub + Notify + Theme Color + Icons
+--// One-file merged version
 
 local cloneref = (cloneref or clonereference or function(instance)
 	return instance
@@ -33,6 +24,7 @@ local function Get(url)
 	local ok, result = pcall(function()
 		return HttpService:GetAsync(url)
 	end)
+
 	if ok and result then
 		return result
 	end
@@ -68,6 +60,30 @@ local function safeLoadPack(url)
 	end
 
 	return { Icons = {}, Spritesheets = {} }
+end
+
+local COLOR_PRESETS = {
+	Red = Color3.fromRGB(255, 80, 80),
+	Blue = Color3.fromRGB(80, 140, 255),
+	Green = Color3.fromRGB(80, 210, 120),
+	Yellow = Color3.fromRGB(255, 210, 80),
+	Orange = Color3.fromRGB(255, 155, 80),
+	Purple = Color3.fromRGB(170, 110, 255),
+	Pink = Color3.fromRGB(255, 120, 190),
+	White = Color3.fromRGB(255, 255, 255),
+	Gray = Color3.fromRGB(180, 180, 180),
+	Black = Color3.fromRGB(35, 35, 35),
+}
+
+local function resolveThemeColor(value, fallback)
+	if typeof(value) == "Color3" then
+		return value
+	end
+	if type(value) == "string" then
+		local key = value:gsub("%s+", "")
+		return COLOR_PRESETS[key] or COLOR_PRESETS[key:gsub("^%l", string.upper)] or fallback
+	end
+	return fallback
 end
 
 local IconModule = {
@@ -291,10 +307,13 @@ local function makeIcon(parent, icon, size, tint)
 		Name = "Icon",
 		BackgroundTransparency = 1,
 		Image = image,
-		ImageColor3 = tint or Color3.new(1, 1, 1),
 		Size = size or UDim2.fromOffset(18, 18),
 		Parent = parent,
 	})
+
+	if tint then
+		img.ImageColor3 = tint
+	end
 
 	if data and data.ImageRectSize then
 		img.ImageRectSize = data.ImageRectSize
@@ -352,7 +371,7 @@ function Library:Notify(config)
 			Parent = gui,
 		})
 
-		local list = create("UIListLayout", {
+		create("UIListLayout", {
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			VerticalAlignment = Enum.VerticalAlignment.Top,
 			HorizontalAlignment = Enum.HorizontalAlignment.Right,
@@ -451,13 +470,14 @@ function Library:CreateWindow(config)
 	local Image = config.Image
 	local SearchBar = config.SearchBar ~= false
 
+	local accent = resolveThemeColor(config.Color, Color3.fromRGB(180, 180, 180))
+	local accentSoft = Color3.fromRGB(235, 235, 235)
+
 	local lightMain = Color3.fromRGB(248, 248, 248)
 	local lightPanel = Color3.fromRGB(255, 255, 255)
 	local lightTop = Color3.fromRGB(242, 242, 242)
 	local darkText = Color3.fromRGB(35, 35, 35)
 	local mutedText = Color3.fromRGB(110, 110, 110)
-	local accent = Color3.fromRGB(85, 200, 120)
-	local accentSoft = Color3.fromRGB(210, 245, 220)
 
 	local screen = create("ScreenGui", {
 		Name = "SKUI_Nexus",
@@ -513,7 +533,7 @@ function Library:CreateWindow(config)
 	stroke(iconHolder, accent, 1, 0.55)
 
 	if Image then
-		local logo = iconOrFallback(iconHolder, Image, "◉", UDim2.fromOffset(18, 18), accent)
+		local logo = iconOrFallback(iconHolder, Image, "◉", UDim2.fromOffset(18, 18), nil)
 		logo.Position = UDim2.new(0.5, -9, 0.5, -9)
 	end
 
@@ -581,6 +601,7 @@ function Library:CreateWindow(config)
 		round(searchBox, UDim.new(0, 8))
 		stroke(searchBox, Color3.fromRGB(210, 210, 210), 1, 0.55)
 		pad(searchBox, 28, 8, 0, 0)
+
 		local searchVisual = iconOrFallback(searchBox, "search", "⌕", UDim2.fromOffset(14, 14), accent)
 		searchVisual.Position = UDim2.new(0, 8, 0.5, -7)
 	end
@@ -745,6 +766,7 @@ function Library:CreateWindow(config)
 		PopupOverlay = overlay,
 		ActiveTabs = {},
 		_activeTab = nil,
+		Color = accent,
 	}
 
 	function window:_applySearch(query)
@@ -785,7 +807,12 @@ function Library:CreateWindow(config)
 
 		local function update(input)
 			local delta = input.Position - dragStart
-			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			main.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
 		end
 
 		top.InputBegan:Connect(function(input)
@@ -857,12 +884,12 @@ function Library:CreateWindow(config)
 		if Shape == "Circle" then
 			round(btn, UDim.new(1, 0))
 		else
-			round(btn, UDim.new(0, 0))
+			round(btn, UDim.new(0, 8))
 		end
 
 		stroke(btn, Color3.fromRGB(220, 220, 220), 1, 0.45)
 
-		local icon = iconOrFallback(btn, Img or "home", "◉", UDim2.new(1, 0, 1, 0), accent)
+		local icon = iconOrFallback(btn, Img or "home", "◉", UDim2.new(1, 0, 1, 0), nil)
 		icon.Position = UDim2.new(0, 0, 0, 0)
 		icon.Size = UDim2.new(1, 0, 1, 0)
 		if icon:IsA("ImageLabel") then
@@ -873,15 +900,26 @@ function Library:CreateWindow(config)
 		local startPos
 		local dragInput
 		local dragging = false
+		local moved = false
 
 		local function update(input)
 			local delta = input.Position - dragStart
-			btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			local newPos = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+			if math.abs(delta.X) > 3 or math.abs(delta.Y) > 3 then
+				moved = true
+			end
+			btn.Position = newPos
 		end
 
 		btn.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 				dragging = true
+				moved = false
 				dragStart = input.Position
 				startPos = btn.Position
 				input.Changed:Connect(function()
@@ -905,7 +943,9 @@ function Library:CreateWindow(config)
 		end)
 
 		btn.MouseButton1Click:Connect(function()
-			main.Visible = not main.Visible
+			if not moved then
+				main.Visible = not main.Visible
+			end
 		end)
 
 		floatingGui = gui
@@ -915,6 +955,7 @@ function Library:CreateWindow(config)
 	function window:CreateTab(tabData)
 		local tabTitle = tabData[1] or "Tab"
 		local tabIcon = tabData[2]
+		local tabIconColor = resolveThemeColor(tabData[3], accent)
 
 		local tabBtn = create("TextButton", {
 			Name = tabTitle .. "_Tab",
@@ -930,7 +971,7 @@ function Library:CreateWindow(config)
 		stroke(tabBtn, Color3.fromRGB(220, 220, 220), 1, 0.5)
 
 		if tabIcon then
-			local ico = makeIcon(tabBtn, tabIcon, UDim2.fromOffset(16, 16), accent)
+			local ico = makeIcon(tabBtn, tabIcon, UDim2.fromOffset(16, 16), tabIconColor)
 			if ico then
 				ico.Position = UDim2.fromOffset(10, 9)
 			end
@@ -1019,9 +1060,7 @@ function Library:CreateWindow(config)
 			end
 
 			root.MouseButton1Click:Connect(function()
-				if data.Locked then
-					return
-				end
+				if data.Locked then return end
 				if data.Callback then
 					task.spawn(data.Callback)
 				end
@@ -1339,6 +1378,7 @@ function Library:CreateWindow(config)
 
 			local function refreshList(filterText)
 				filterText = string.lower(filterText or "")
+
 				for _, c in ipairs(popupScroll:GetChildren()) do
 					if c:IsA("TextButton") then
 						c:Destroy()
