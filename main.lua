@@ -267,22 +267,22 @@ local BTUI = {}
 BTUI.IconModule = IconModule
 
 local THEME = {
-	BG = Color3.fromRGB(10, 10, 13),
-	BG2 = Color3.fromRGB(16, 16, 20),
-	BG3 = Color3.fromRGB(20, 20, 26),
-	Panel = Color3.fromRGB(24, 24, 32),
-	Accent = Color3.fromRGB(120, 80, 255),
-	Accent2 = Color3.fromRGB(62, 145, 255),
+	BG = Color3.fromRGB(9, 9, 12),
+	BG2 = Color3.fromRGB(14, 14, 18),
+	BG3 = Color3.fromRGB(18, 18, 24),
+	Panel = Color3.fromRGB(22, 22, 30),
+	Accent = Color3.fromRGB(128, 87, 255),
+	Accent2 = Color3.fromRGB(82, 150, 255),
 	Accent3 = Color3.fromRGB(66, 220, 164),
+	BlueSelect = Color3.fromRGB(70, 145, 255),
 	Text = Color3.fromRGB(245, 245, 250),
-	SubText = Color3.fromRGB(165, 170, 190),
-	Stroke = Color3.fromRGB(55, 55, 68),
-	SoftStroke = Color3.fromRGB(35, 35, 45),
+	SubText = Color3.fromRGB(160, 166, 186),
+	Stroke = Color3.fromRGB(56, 56, 70),
+	SoftStroke = Color3.fromRGB(34, 34, 44),
 	Shadow = Color3.fromRGB(0, 0, 0),
 	Good = Color3.fromRGB(77, 220, 140),
 	Warn = Color3.fromRGB(255, 210, 60),
 	Danger = Color3.fromRGB(255, 90, 100),
-	BlueSelect = Color3.fromRGB(72, 142, 255),
 }
 
 local function New(className, props)
@@ -338,7 +338,7 @@ end
 local function IsImageLike(v)
 	if type(v) == "number" then return true end
 	if type(v) ~= "string" then return false end
-	return v:match("^rbxassetid://") or v:match("^http") or v:match("^rbxthumb://")
+	return v:match("^rbxassetid://") or v:match("^rbxthumb://") or v:match("^http")
 end
 
 local function NormalizeImage(v)
@@ -346,7 +346,7 @@ local function NormalizeImage(v)
 		return "rbxassetid://" .. tostring(v)
 	end
 	if type(v) == "string" then
-		if v:match("^rbxassetid://") or v:match("^http") or v:match("^rbxthumb://") then
+		if v:match("^rbxassetid://") or v:match("^rbxthumb://") or v:match("^http") then
 			return v
 		end
 		local digits = v:match("^%d+$")
@@ -376,30 +376,39 @@ local function ResolveIcon(icon, iconType)
 					Size = UDim2.fromOffset(18, 18),
 				})
 				if typeof(img) == "table" and img.IconFrame and img.IconFrame:IsA("ImageLabel") then
-					return img.IconFrame.Image
+					return img.IconFrame.Image, {
+						ImageRectSize = img.IconFrame.ImageRectSize,
+						ImageRectPosition = img.IconFrame.ImageRectOffset,
+					}
 				end
 			end
 
 			if type(IconModule.Icon2) == "function" then
 				local res = IconModule.Icon2(icon, iconType)
 				if type(res) == "string" then
-					return res
+					return NormalizeImage(res) or res, nil
 				elseif type(res) == "table" then
-					return res[1]
+					return NormalizeImage(res[1]) or res[1], {
+						ImageRectSize = res[2] and res[2].ImageRectSize or nil,
+						ImageRectPosition = res[2] and res[2].ImageRectPosition or nil,
+					}
 				end
 			end
 
 			if type(IconModule.Icon) == "function" then
 				local res = IconModule.Icon(icon, iconType, true)
 				if type(res) == "string" then
-					return res
+					return NormalizeImage(res) or res, nil
 				elseif type(res) == "table" then
-					return res[1]
+					return NormalizeImage(res[1]) or res[1], {
+						ImageRectSize = res[2] and res[2].ImageRectSize or nil,
+						ImageRectPosition = res[2] and res[2].ImageRectPosition or nil,
+					}
 				end
 			end
 		end)
 		if ok and result then
-			return NormalizeImage(result) or result, nil
+			return result
 		end
 	end
 
@@ -409,7 +418,18 @@ end
 local function MakeIcon(parent, icon, size, tint, iconType)
 	local img, rect = ResolveIcon(icon, iconType)
 	if not img then
-		return nil
+		local textFallback = New("TextLabel", {
+			Name = "IconFallback",
+			BackgroundTransparency = 1,
+			Size = size or UDim2.fromOffset(18, 18),
+			Text = tostring(icon or "?"):sub(1, 1):upper(),
+			TextColor3 = tint or THEME.Text,
+			TextSize = math.max(10, math.floor((size and size.Y.Offset or 18) * 0.7)),
+			Font = Enum.Font.GothamBold,
+			ZIndex = 5,
+			Parent = parent,
+		})
+		return textFallback
 	end
 
 	local iconLabel = New("ImageLabel", {
@@ -418,13 +438,19 @@ local function MakeIcon(parent, icon, size, tint, iconType)
 		Size = size or UDim2.fromOffset(18, 18),
 		Image = img,
 		ImageColor3 = tint or THEME.Text,
+		ImageTransparency = 0,
 		ScaleType = Enum.ScaleType.Fit,
+		ResampleMode = Enum.ResamplerMode.Default,
 		Parent = parent,
 	})
 
 	if rect then
-		iconLabel.ImageRectSize = rect.ImageRectSize
-		iconLabel.ImageRectOffset = rect.ImageRectPosition
+		if rect.ImageRectSize then
+			iconLabel.ImageRectSize = rect.ImageRectSize
+		end
+		if rect.ImageRectPosition then
+			iconLabel.ImageRectOffset = rect.ImageRectPosition
+		end
 	end
 
 	return iconLabel
@@ -596,12 +622,20 @@ function BTUI:CreateWindow(config)
 	local TopBar = New("Frame", {
 		Name = "TopBar",
 		BackgroundColor3 = THEME.BG2,
-		BackgroundTransparency = 0.05,
-		Size = UDim2.new(1, 0, 0, 48),
+		BackgroundTransparency = 0.03,
+		Size = UDim2.new(1, 0, 0, 54),
 		ZIndex = 3,
 		Parent = Main,
 	})
-	Stroke(TopBar, 0.78, 1, THEME.SoftStroke)
+	Stroke(TopBar, 0.82, 1, THEME.SoftStroke)
+
+	local TopGlow = New("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 1, 0),
+		ZIndex = 2,
+		Parent = TopBar,
+	})
+	SetGlow(TopGlow)
 
 	local LogoWrap = New("Frame", {
 		BackgroundTransparency = 1,
@@ -899,9 +933,9 @@ function BTUI:CreateWindow(config)
 		FloatingBtn = New("TextButton", {
 			Name = "OpenBtn",
 			BackgroundColor3 = THEME.BG2,
-			BackgroundTransparency = 0.06,
-			Size = UDim2.fromOffset(128, 38),
-			Position = UDim2.new(1, -146, 1, -60),
+			BackgroundTransparency = 0.04,
+			Size = UDim2.fromOffset(132, 40),
+			Position = UDim2.new(1, -150, 1, -64),
 			Text = "",
 			AutoButtonColor = false,
 			ZIndex = 50,
@@ -973,6 +1007,9 @@ function BTUI:CreateWindow(config)
 			config.Image = minConfig.Image
 		end
 		createFloatingButton()
+		if FloatingGui then
+			FloatingGui.Enabled = false
+		end
 		return FloatingBtn
 	end
 
@@ -1082,11 +1119,71 @@ function BTUI:CreateWindow(config)
 			Parent = Pages,
 		})
 
+		local Header = New("Frame", {
+			Name = "PageHeader",
+			BackgroundColor3 = THEME.BG2,
+			BackgroundTransparency = 0.06,
+			Size = UDim2.new(1, -10, 0, 92),
+			Position = UDim2.fromOffset(5, 5),
+			ZIndex = 3,
+			Parent = Page,
+		})
+		Corner(Header, UDim.new(0, 14))
+		Stroke(Header, 0.8, 1, THEME.SoftStroke)
+
+		local HeaderIconWrap = New("Frame", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(42, 42),
+			Position = UDim2.fromOffset(18, 20),
+			ZIndex = 4,
+			Parent = Header,
+		})
+		local fallbackTitleIcon = tabIcon and tab.Icon or "lightbulb"
+		local HeaderIcon = MakeIcon(HeaderIconWrap, fallbackTitleIcon, UDim2.fromOffset(32, 32), THEME.Warn, "lucide")
+		if not HeaderIcon then
+			New("TextLabel", {
+				BackgroundTransparency = 1,
+				Size = UDim2.fromScale(1, 1),
+				Text = "💡",
+				TextColor3 = THEME.Warn,
+				TextSize = 28,
+				Font = Enum.Font.GothamBold,
+				ZIndex = 4,
+				Parent = HeaderIconWrap,
+			})
+		end
+
+		local HeaderTitle = New("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, -80, 0, 26),
+			Position = UDim2.fromOffset(68, 22),
+			Text = (tab.Title == "Lighting" and "Lighting" or tab.Title),
+			TextColor3 = THEME.Text,
+			TextSize = 24,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 4,
+			Parent = Header,
+		})
+
+		local HeaderSub = New("TextLabel", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, -80, 0, 18),
+			Position = UDim2.fromOffset(68, 48),
+			Text = tab.Title == "Lighting" and "View and adjust properties of lighting." or "View and adjust properties.",
+			TextColor3 = THEME.SubText,
+			TextSize = 12,
+			Font = Enum.Font.Gotham,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 4,
+			Parent = Header,
+		})
+
 		local Scroll = New("ScrollingFrame", {
 			Name = "ElementScroll",
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, -10, 1, -10),
-			Position = UDim2.fromOffset(5, 5),
+			Size = UDim2.new(1, -10, 1, -104),
+			Position = UDim2.fromOffset(5, 100),
 			BorderSizePixel = 0,
 			CanvasSize = UDim2.fromOffset(0, 0),
 			ScrollBarThickness = 4,
@@ -1495,10 +1592,10 @@ function BTUI:CreateWindow(config)
 
 			local DropdownPopup = New("Frame", {
 				Name = "DropdownPopup",
-				BackgroundColor3 = THEME.BG,
+				BackgroundColor3 = THEME.BG2,
 				BackgroundTransparency = 0.02,
-				Size = UDim2.fromOffset(320, 250),
-				Position = UDim2.new(0.5, -160, 0.5, -125),
+				Size = UDim2.fromOffset(330, 258),
+				Position = UDim2.new(0.5, -165, 0.5, -129),
 				Visible = false,
 				ZIndex = 50,
 				Parent = Main,
