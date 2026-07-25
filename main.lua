@@ -1,4 +1,8 @@
--- This is a new version
+-- BTUI Modern Studio / Nexus Dark
+-- Keeps your API:
+-- local Window = BTUI:CreateWindow({ Title = "...", Image = "...", Subtitle = "...", SearchBar = true })
+-- local MinimizeBtn = Window:CreateMinimizeBtn({ Title = "Open UI", Image = "..." })
+-- local Tab = Window:CreateTab({ "Main", "home" })
 
 local cloneref = (cloneref or clonereference or function(instance)
 	return instance
@@ -7,6 +11,10 @@ end)
 local RunService = cloneref(game:GetService("RunService"))
 local HttpService = cloneref(game:GetService("HttpService"))
 local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
+local TweenService = cloneref(game:GetService("TweenService"))
+local UserInputService = cloneref(game:GetService("UserInputService"))
+local CoreGui = cloneref(game:GetService("CoreGui"))
+local Players = cloneref(game:GetService("Players"))
 
 local function IsExploit()
 	return request and true or false
@@ -28,7 +36,7 @@ local function Get(url)
 end
 
 local function Loadstring(src)
-	if not IsExploit() and ReplicatedStorage:WaitForChild("Loadstring", 9999) then
+	if not IsExploit() and ReplicatedStorage:FindFirstChild("Loadstring") then
 		return function()
 			return ReplicatedStorage:WaitForChild("Loadstring", 9999):InvokeServer(src)
 		end
@@ -39,10 +47,8 @@ end
 
 local IconModule = {
 	IconsType = "lucide",
-
 	New = nil,
 	IconThemeTag = nil,
-
 	Icons = {
 		lucide = IsExploit() and Loadstring(
 			Get("https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua")
@@ -137,7 +143,6 @@ end
 function IconModule.Init(New, IconThemeTag)
 	IconModule.New = New
 	IconModule.IconThemeTag = IconThemeTag
-
 	return IconModule
 end
 
@@ -180,12 +185,10 @@ function IconModule.Image(IconConfig)
 		Type = IconConfig.Type,
 		Colors = IconConfig.Colors or { (IconModule.IconThemeTag or Color3.new(1, 1, 1)), Color3.new(1, 1, 1) },
 		Size = IconConfig.Size or UDim2.new(0, 24, 0, 24),
-
 		IconFrame = nil,
 	}
 
 	local Colors = {}
-
 	for _, color in next, Icon.Colors do
 		Colors[_] = {
 			ThemeTag = typeof(color) == "string" and color,
@@ -198,7 +201,6 @@ function IconModule.Image(IconConfig)
 
 	if IconModule.New then
 		local New = IconModule.New
-
 		local IconFrame = New("ImageLabel", {
 			Size = Icon.Size,
 			BackgroundTransparency = 1,
@@ -244,7 +246,7 @@ function IconModule.Image(IconConfig)
 			for _, part in next, IconLabel[2].Parts do
 				local IconPartLabel = IconModule.Icon(part, Icon.Type)
 
-				local IconPart = Instance.New("ImageLabel")
+				local IconPart = Instance.new("ImageLabel")
 				IconPart.Size = UDim2.new(1, 0, 1, 0)
 				IconPart.BackgroundTransparency = 1
 				IconPart.ImageColor3 = Colors[1 + _].Color
@@ -261,30 +263,26 @@ function IconModule.Image(IconConfig)
 	return Icon
 end
 
--- BTUI Library Starts Here
-
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
-
-local LP = Players.LocalPlayer
-local PlayerGui = LP:FindFirstChildOfClass("PlayerGui") or LP:WaitForChild("PlayerGui")
-
 local BTUI = {}
+BTUI.IconModule = IconModule
 
 local THEME = {
-	BG = Color3.fromRGB(10, 22, 15),
-	BG2 = Color3.fromRGB(13, 30, 20),
-	BG3 = Color3.fromRGB(17, 38, 26),
-	Accent = Color3.fromRGB(40, 170, 96),
-	Accent2 = Color3.fromRGB(60, 210, 120),
-	Text = Color3.fromRGB(240, 255, 245),
-	SubText = Color3.fromRGB(175, 205, 185),
-	Stroke = Color3.fromRGB(55, 95, 70),
-	SoftStroke = Color3.fromRGB(35, 60, 45),
+	BG = Color3.fromRGB(10, 10, 13),
+	BG2 = Color3.fromRGB(16, 16, 20),
+	BG3 = Color3.fromRGB(20, 20, 26),
+	Panel = Color3.fromRGB(24, 24, 32),
+	Accent = Color3.fromRGB(120, 80, 255),
+	Accent2 = Color3.fromRGB(62, 145, 255),
+	Accent3 = Color3.fromRGB(66, 220, 164),
+	Text = Color3.fromRGB(245, 245, 250),
+	SubText = Color3.fromRGB(165, 170, 190),
+	Stroke = Color3.fromRGB(55, 55, 68),
+	SoftStroke = Color3.fromRGB(35, 35, 45),
 	Shadow = Color3.fromRGB(0, 0, 0),
-	Danger = Color3.fromRGB(210, 75, 75),
+	Good = Color3.fromRGB(77, 220, 140),
+	Warn = Color3.fromRGB(255, 210, 60),
+	Danger = Color3.fromRGB(255, 90, 100),
+	BlueSelect = Color3.fromRGB(72, 142, 255),
 }
 
 local function New(className, props)
@@ -337,68 +335,84 @@ local function SafeCall(fn, ...)
 	end
 end
 
-local function ResolveIcon(icon, iconType)
-	if icon == nil then
-		return nil
-	end
+local function IsImageLike(v)
+	if type(v) == "number" then return true end
+	if type(v) ~= "string" then return false end
+	return v:match("^rbxassetid://") or v:match("^http") or v:match("^rbxthumb://")
+end
 
-	if type(icon) == "number" then
-		return "rbxassetid://" .. tostring(icon)
+local function NormalizeImage(v)
+	if type(v) == "number" then
+		return "rbxassetid://" .. tostring(v)
 	end
-
-	if type(icon) == "string" then
-		if icon:match("^rbxassetid://") then
-			return icon
+	if type(v) == "string" then
+		if v:match("^rbxassetid://") or v:match("^http") or v:match("^rbxthumb://") then
+			return v
 		end
-
-		if IconModule then
-			local ok, result = pcall(function()
-				if type(IconModule.Image) == "function" then
-					local img = IconModule:Image({
-						Icon = icon,
-						Type = iconType or "lucide",
-						Size = UDim2.fromOffset(18, 18),
-					})
-					if typeof(img) == "table" and img.IconFrame and img.IconFrame:IsA("ImageLabel") then
-						return img.IconFrame.Image
-					end
-				end
-
-				if type(IconModule.Icon2) == "function" then
-					local res = IconModule.Icon2(icon, iconType)
-					if type(res) == "string" then
-						return res
-					elseif type(res) == "table" then
-						return res[1]
-					end
-				end
-
-				if type(IconModule.Icon) == "function" then
-					local res = IconModule.Icon(icon, iconType, true)
-					if type(res) == "string" then
-						return res
-					elseif type(res) == "table" then
-						return res[1]
-					end
-				end
-			end)
-
-			if ok and result then
-				return result
-			end
+		local digits = v:match("^%d+$")
+		if digits then
+			return "rbxassetid://" .. digits
 		end
 	end
-
 	return nil
 end
 
-local function CreateIcon(parent, icon, size, tint, iconType)
-	local img = ResolveIcon(icon, iconType)
+local function ResolveIcon(icon, iconType)
+	if icon == nil then
+		return nil, nil
+	end
+
+	local direct = NormalizeImage(icon)
+	if direct then
+		return direct, nil
+	end
+
+	if type(icon) == "string" and IconModule then
+		local ok, result = pcall(function()
+			if type(IconModule.Image) == "function" then
+				local img = IconModule:Image({
+					Icon = icon,
+					Type = iconType or "lucide",
+					Size = UDim2.fromOffset(18, 18),
+				})
+				if typeof(img) == "table" and img.IconFrame and img.IconFrame:IsA("ImageLabel") then
+					return img.IconFrame.Image
+				end
+			end
+
+			if type(IconModule.Icon2) == "function" then
+				local res = IconModule.Icon2(icon, iconType)
+				if type(res) == "string" then
+					return res
+				elseif type(res) == "table" then
+					return res[1]
+				end
+			end
+
+			if type(IconModule.Icon) == "function" then
+				local res = IconModule.Icon(icon, iconType, true)
+				if type(res) == "string" then
+					return res
+				elseif type(res) == "table" then
+					return res[1]
+				end
+			end
+		end)
+		if ok and result then
+			return NormalizeImage(result) or result, nil
+		end
+	end
+
+	return nil, nil
+end
+
+local function MakeIcon(parent, icon, size, tint, iconType)
+	local img, rect = ResolveIcon(icon, iconType)
 	if not img then
 		return nil
 	end
 
-	return New("ImageLabel", {
+	local iconLabel = New("ImageLabel", {
 		Name = "Icon",
 		BackgroundTransparency = 1,
 		Size = size or UDim2.fromOffset(18, 18),
@@ -407,6 +421,13 @@ local function CreateIcon(parent, icon, size, tint, iconType)
 		ScaleType = Enum.ScaleType.Fit,
 		Parent = parent,
 	})
+
+	if rect then
+		iconLabel.ImageRectSize = rect.ImageRectSize
+		iconLabel.ImageRectOffset = rect.ImageRectPosition
+	end
+
+	return iconLabel
 end
 
 local function CreateShadow(parent)
@@ -414,12 +435,12 @@ local function CreateShadow(parent)
 		Name = "Shadow",
 		BackgroundColor3 = THEME.Shadow,
 		BackgroundTransparency = 0.55,
-		Size = UDim2.new(1, 18, 1, 18),
-		Position = UDim2.fromOffset(-9, -9),
+		Size = UDim2.new(1, 22, 1, 22),
+		Position = UDim2.fromOffset(-11, -11),
 		ZIndex = 0,
 		Parent = parent,
 	})
-	Corner(shadow, UDim.new(0, 14))
+	Corner(shadow, UDim.new(0, 16))
 	return shadow
 end
 
@@ -444,7 +465,6 @@ local function Dragify(dragHandle, target)
 			dragging = true
 			startPos = input.Position
 			startFramePos = target.Position
-
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -476,6 +496,47 @@ local function MakeCanvasUpdater(scrollFrame, layout)
 	return update
 end
 
+local function SetGlow(frame)
+	local glow = New("Frame", {
+		Name = "Glow",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 1, 0),
+		ZIndex = 1,
+		Parent = frame,
+	})
+	local g1 = New("ImageLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 40, 1, 40),
+		Position = UDim2.fromOffset(-20, -20),
+		Image = "rbxassetid://10709791238",
+		ImageTransparency = 0.84,
+		ImageColor3 = THEME.Accent,
+		ZIndex = 1,
+		Parent = glow,
+	})
+	local g2 = New("ImageLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 50, 1, 50),
+		Position = UDim2.fromOffset(-25, -25),
+		Image = "rbxassetid://10709791238",
+		ImageTransparency = 0.90,
+		ImageColor3 = THEME.Accent2,
+		ZIndex = 1,
+		Parent = glow,
+	})
+	local g3 = New("ImageLabel", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 70, 1, 70),
+		Position = UDim2.fromOffset(-35, -35),
+		Image = "rbxassetid://10709791238",
+		ImageTransparency = 0.94,
+		ImageColor3 = THEME.Accent3,
+		ZIndex = 1,
+		Parent = glow,
+	})
+	return glow, g1, g2, g3
+end
+
 function BTUI:CreateWindow(config)
 	config = config or {}
 
@@ -483,16 +544,14 @@ function BTUI:CreateWindow(config)
 	window.Tabs = {}
 	window.ActiveTab = nil
 	window._destroyed = false
-	window._searchText = ""
 	window._uiVisible = true
+	window._searchText = ""
 
-	local guiParent = (gethui and gethui()) or CoreGui
-	if guiParent == nil then
-		guiParent = PlayerGui
-	end
+	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui") or Players.LocalPlayer:WaitForChild("PlayerGui")
+	local guiParent = (gethui and gethui()) or CoreGui or playerGui
 
 	local ScreenGui = New("ScreenGui", {
-		Name = "BTUI_" .. tostring(math.random(10000, 99999)),
+		Name = "BTUI_Modern_" .. tostring(math.random(10000, 99999)),
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -502,18 +561,19 @@ function BTUI:CreateWindow(config)
 	local MainShadow = New("Frame", {
 		Name = "MainShadow",
 		BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(566, 356),
+		Size = UDim2.fromOffset(920, 600),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		ZIndex = 1,
 		Parent = ScreenGui,
 	})
 	CreateShadow(MainShadow)
+	local _, glow1, glow2, glow3 = SetGlow(MainShadow)
 
 	local Main = New("Frame", {
 		Name = "Main",
 		BackgroundColor3 = THEME.BG,
-		BackgroundTransparency = 0.10,
+		BackgroundTransparency = 0.08,
 		Size = UDim2.fromOffset(550, 340),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -521,105 +581,104 @@ function BTUI:CreateWindow(config)
 		ZIndex = 2,
 		Parent = ScreenGui,
 	})
-	Corner(Main, UDim.new(0, 14))
-	Stroke(Main, 0.20, 1, THEME.Stroke)
+	Corner(Main, UDim.new(0, 16))
+	Stroke(Main, 0.22, 1, THEME.Stroke)
+
+	local MainGlow = New("Frame", {
+		Name = "MainGlow",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 1, 0),
+		ZIndex = 1,
+		Parent = Main,
+	})
+	SetGlow(MainGlow)
 
 	local TopBar = New("Frame", {
 		Name = "TopBar",
 		BackgroundColor3 = THEME.BG2,
-		BackgroundTransparency = 0.08,
-		Size = UDim2.new(1, 0, 0, 52),
+		BackgroundTransparency = 0.05,
+		Size = UDim2.new(1, 0, 0, 48),
 		ZIndex = 3,
 		Parent = Main,
 	})
-	Stroke(TopBar, 0.65, 1, THEME.SoftStroke)
+	Stroke(TopBar, 0.78, 1, THEME.SoftStroke)
 
-	local TitleIcon = New("Frame", {
-		Name = "TitleIconWrap",
+	local LogoWrap = New("Frame", {
 		BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(34, 34),
-		Position = UDim2.fromOffset(14, 9),
+		Size = UDim2.fromOffset(24, 24),
+		Position = UDim2.fromOffset(12, 12),
 		ZIndex = 4,
 		Parent = TopBar,
 	})
-	local titleIconImg = CreateIcon(TitleIcon, config.Image, UDim2.fromOffset(24, 24), THEME.Accent2, "lucide")
-	if titleIconImg then
-		titleIconImg.Position = UDim2.fromOffset(4, 5)
-	else
+	local logo = MakeIcon(LogoWrap, config.Image or "sparkles", UDim2.fromOffset(18, 18), THEME.Text, "lucide")
+	if not logo then
 		New("TextLabel", {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 1),
-			Text = "◈",
-			TextColor3 = THEME.Accent2,
-			TextSize = 20,
+			Text = "◆",
+			TextColor3 = THEME.Text,
+			TextSize = 16,
 			Font = Enum.Font.GothamBold,
 			ZIndex = 4,
-			Parent = TitleIcon,
+			Parent = LogoWrap,
 		})
 	end
 
-	local TitleWrap = New("Frame", {
-		Name = "TitleWrap",
-		BackgroundTransparency = 1,
-		Size = UDim2.new(0, 220, 1, 0),
-		Position = UDim2.fromOffset(52, 0),
-		ZIndex = 4,
-		Parent = TopBar,
-	})
 	local Title = New("TextLabel", {
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 24),
-		Position = UDim2.fromOffset(0, 8),
+		Size = UDim2.new(1, -260, 0, 22),
+		Position = UDim2.fromOffset(42, 8),
 		Text = config.Title or "BTUI",
 		TextColor3 = THEME.Text,
-		TextSize = 18,
+		TextSize = 16,
 		Font = Enum.Font.GothamBold,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 4,
-		Parent = TitleWrap,
+		Parent = TopBar,
 	})
+
 	local Subtitle = New("TextLabel", {
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 16),
-		Position = UDim2.fromOffset(0, 26),
+		Size = UDim2.new(1, -260, 0, 14),
+		Position = UDim2.fromOffset(42, 24),
 		Text = config.Subtitle or "",
 		TextColor3 = THEME.SubText,
-		TextSize = 12,
+		TextSize = 11,
 		Font = Enum.Font.Gotham,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 4,
-		Parent = TitleWrap,
+		Parent = TopBar,
 	})
 
-	local SearchBox = nil
+	local SearchBox
 	if config.SearchBar then
 		local SearchFrame = New("Frame", {
 			Name = "SearchFrame",
 			BackgroundColor3 = THEME.BG3,
 			BackgroundTransparency = 0.12,
-			Size = UDim2.fromOffset(190, 30),
-			Position = UDim2.new(1, -244, 0, 11),
+			Size = UDim2.fromOffset(190, 28),
+			Position = UDim2.new(1, -300, 0, 10),
 			ZIndex = 4,
 			Parent = TopBar,
 		})
 		Corner(SearchFrame, UDim.new(0, 9))
-		Stroke(SearchFrame, 0.65, 1, THEME.SoftStroke)
+		Stroke(SearchFrame, 0.7, 1, THEME.SoftStroke)
 
 		local SearchIconWrap = New("Frame", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromOffset(24, 24),
-			Position = UDim2.fromOffset(7, 3),
+			Size = UDim2.fromOffset(20, 20),
+			Position = UDim2.fromOffset(7, 4),
 			ZIndex = 5,
 			Parent = SearchFrame,
 		})
-		local searchIcon = CreateIcon(SearchIconWrap, "search", UDim2.fromOffset(16, 16), THEME.SubText, "lucide")
-		if not searchIcon then
+		local sIcon = MakeIcon(SearchIconWrap, "search", UDim2.fromOffset(14, 14), THEME.SubText, "lucide")
+		if not sIcon then
 			New("TextLabel", {
 				BackgroundTransparency = 1,
 				Size = UDim2.fromScale(1, 1),
 				Text = "⌕",
 				TextColor3 = THEME.SubText,
-				TextSize = 16,
+				TextSize = 15,
 				Font = Enum.Font.GothamBold,
 				ZIndex = 5,
 				Parent = SearchIconWrap,
@@ -629,8 +688,8 @@ function BTUI:CreateWindow(config)
 		SearchBox = New("TextBox", {
 			Name = "SearchBox",
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, -32, 1, 0),
-			Position = UDim2.fromOffset(30, 0),
+			Size = UDim2.new(1, -28, 1, 0),
+			Position = UDim2.fromOffset(28, 0),
 			ClearTextOnFocus = false,
 			PlaceholderText = "Search...",
 			Text = "",
@@ -647,24 +706,23 @@ function BTUI:CreateWindow(config)
 	local CloseBtn = New("TextButton", {
 		Name = "CloseBtn",
 		BackgroundColor3 = THEME.Danger,
-		BackgroundTransparency = 0.15,
+		BackgroundTransparency = 0.1,
 		Size = UDim2.fromOffset(28, 28),
-		Position = UDim2.new(1, -38, 0, 12),
+		Position = UDim2.new(1, -34, 0, 10),
 		Text = "",
 		AutoButtonColor = false,
 		ZIndex = 5,
 		Parent = TopBar,
 	})
-	Corner(CloseBtn, UDim.new(0, 8))
-	Stroke(CloseBtn, 0.65, 1, Color3.fromRGB(120, 50, 50))
-
+	Corner(CloseBtn, UDim.new(0, 9))
+	Stroke(CloseBtn, 0.68, 1, Color3.fromRGB(120, 50, 50))
 	local closeIconWrap = New("Frame", {
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 		ZIndex = 6,
 		Parent = CloseBtn,
 	})
-	local closeIcon = CreateIcon(closeIconWrap, "x", UDim2.fromOffset(14, 14), THEME.Text, "lucide")
+	local closeIcon = MakeIcon(closeIconWrap, "x", UDim2.fromOffset(14, 14), THEME.Text, "lucide")
 	if not closeIcon then
 		New("TextLabel", {
 			BackgroundTransparency = 1,
@@ -681,8 +739,8 @@ function BTUI:CreateWindow(config)
 	local Body = New("Frame", {
 		Name = "Body",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 1, -52),
-		Position = UDim2.fromOffset(0, 52),
+		Size = UDim2.new(1, 0, 1, -48),
+		Position = UDim2.fromOffset(0, 48),
 		ZIndex = 3,
 		Parent = Main,
 	})
@@ -690,8 +748,8 @@ function BTUI:CreateWindow(config)
 	local Sidebar = New("ScrollingFrame", {
 		Name = "Sidebar",
 		BackgroundColor3 = THEME.BG2,
-		BackgroundTransparency = 0.10,
-		Size = UDim2.new(0, 152, 1, 0),
+		BackgroundTransparency = 0.1,
+		Size = UDim2.new(0, 156, 1, 0),
 		CanvasSize = UDim2.fromOffset(0, 0),
 		ScrollBarThickness = 4,
 		ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -700,20 +758,29 @@ function BTUI:CreateWindow(config)
 		ZIndex = 3,
 		Parent = Body,
 	})
-	Stroke(Sidebar, 0.70, 1, THEME.SoftStroke)
+	Stroke(Sidebar, 0.72, 1, THEME.SoftStroke)
+	Pad(Sidebar, 8, 8, 8, 8)
 	local SidebarLayout = New("UIListLayout", {
 		Padding = UDim.new(0, 6),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = Sidebar,
 	})
-	Pad(Sidebar, 8, 8, 8, 8)
 	MakeCanvasUpdater(Sidebar, SidebarLayout)
+
+	local Divider = New("Frame", {
+		BackgroundColor3 = THEME.SoftStroke,
+		BackgroundTransparency = 0.65,
+		Size = UDim2.new(0, 1, 1, 0),
+		Position = UDim2.fromOffset(156, 0),
+		ZIndex = 3,
+		Parent = Body,
+	})
 
 	local Right = New("Frame", {
 		Name = "Right",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -152, 1, 0),
-		Position = UDim2.fromOffset(152, 0),
+		Size = UDim2.new(1, -156, 1, 0),
+		Position = UDim2.fromOffset(156, 0),
 		ZIndex = 3,
 		Parent = Body,
 	})
@@ -726,8 +793,8 @@ function BTUI:CreateWindow(config)
 		Parent = Right,
 	})
 
-	local FloatingBtn = nil
-	local FloatingGui = nil
+	local FloatingGui
+	local FloatingBtn
 
 	local function setVisible(state)
 		window._uiVisible = state
@@ -742,12 +809,11 @@ function BTUI:CreateWindow(config)
 		Main.Visible = true
 		MainShadow.Visible = true
 		Main.Size = UDim2.fromOffset(530, 326)
-		Main.BackgroundTransparency = 0.18
-		Tween(Main, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Main.BackgroundTransparency = 0.16
+		Tween(Main, TweenInfo.new(0.23, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = UDim2.fromOffset(550, 340),
-			BackgroundTransparency = 0.10,
+			BackgroundTransparency = 0.08,
 		})
-		MainShadow.Visible = true
 	end
 
 	local function closeAnim()
@@ -813,7 +879,6 @@ function BTUI:CreateWindow(config)
 		Tween(tab.ButtonIndicator, TweenInfo.new(0.18), {
 			BackgroundTransparency = 0,
 		})
-
 		applySearch(SearchBox and SearchBox.Text or "")
 	end
 
@@ -823,7 +888,7 @@ function BTUI:CreateWindow(config)
 		end
 
 		FloatingGui = New("ScreenGui", {
-			Name = "BTUI_Minimize_" .. tostring(math.random(10000, 99999)),
+			Name = "BTUI_Floating_" .. tostring(math.random(10000, 99999)),
 			ResetOnSpawn = false,
 			IgnoreGuiInset = true,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -834,31 +899,39 @@ function BTUI:CreateWindow(config)
 		FloatingBtn = New("TextButton", {
 			Name = "OpenBtn",
 			BackgroundColor3 = THEME.BG2,
-			BackgroundTransparency = 0.08,
-			Size = UDim2.fromOffset(120, 36),
-			Position = UDim2.new(1, -140, 1, -56),
+			BackgroundTransparency = 0.06,
+			Size = UDim2.fromOffset(128, 38),
+			Position = UDim2.new(1, -146, 1, -60),
 			Text = "",
 			AutoButtonColor = false,
 			ZIndex = 50,
 			Parent = FloatingGui,
 		})
 		Corner(FloatingBtn, UDim.new(0, 12))
-		Stroke(FloatingBtn, 0.55, 1, THEME.Stroke)
+		Stroke(FloatingBtn, 0.58, 1, THEME.Stroke)
+
+		local FloatingGlow = New("Frame", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			ZIndex = 49,
+			Parent = FloatingBtn,
+		})
+		SetGlow(FloatingGlow)
 
 		local btnIcon = New("Frame", {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromOffset(28, 28),
-			Position = UDim2.fromOffset(10, 4),
+			Position = UDim2.fromOffset(10, 5),
 			ZIndex = 51,
 			Parent = FloatingBtn,
 		})
-		local icon = CreateIcon(btnIcon, config.Image or "home", UDim2.fromOffset(18, 18), THEME.Accent2, "lucide")
+		local icon = MakeIcon(btnIcon, config.Image or "home", UDim2.fromOffset(18, 18), THEME.Text, "lucide")
 		if not icon then
 			New("TextLabel", {
 				BackgroundTransparency = 1,
 				Size = UDim2.fromScale(1, 1),
 				Text = "◎",
-				TextColor3 = THEME.Accent2,
+				TextColor3 = THEME.Text,
 				TextSize = 16,
 				Font = Enum.Font.GothamBold,
 				ZIndex = 51,
@@ -868,8 +941,8 @@ function BTUI:CreateWindow(config)
 
 		New("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, -46, 1, 0),
-			Position = UDim2.fromOffset(40, 0),
+			Size = UDim2.new(1, -44, 1, 0),
+			Position = UDim2.fromOffset(42, 0),
 			Text = config.MinimizeTitle or "Open UI",
 			TextColor3 = THEME.Text,
 			TextSize = 13,
@@ -880,11 +953,10 @@ function BTUI:CreateWindow(config)
 		})
 
 		FloatingBtn.MouseEnter:Connect(function()
-			Tween(FloatingBtn, TweenInfo.new(0.15), { BackgroundTransparency = 0.02 })
+			Tween(FloatingBtn, TweenInfo.new(0.14), { BackgroundTransparency = 0.01 })
 		end)
-
 		FloatingBtn.MouseLeave:Connect(function()
-			Tween(FloatingBtn, TweenInfo.new(0.15), { BackgroundTransparency = 0.08 })
+			Tween(FloatingBtn, TweenInfo.new(0.14), { BackgroundTransparency = 0.06 })
 		end)
 
 		FloatingBtn.MouseButton1Click:Connect(function()
@@ -914,14 +986,14 @@ function BTUI:CreateWindow(config)
 	local function createElementCard(parent, height)
 		local card = New("Frame", {
 			BackgroundColor3 = THEME.BG2,
-			BackgroundTransparency = 0.16,
+			BackgroundTransparency = 0.14,
 			Size = UDim2.new(1, -4, 0, height),
 			BorderSizePixel = 0,
 			ZIndex = 4,
 			Parent = parent,
 		})
-		Corner(card, UDim.new(0, 10))
-		Stroke(card, 0.72, 1, THEME.SoftStroke)
+		Corner(card, UDim.new(0, 12))
+		Stroke(card, 0.76, 1, THEME.SoftStroke)
 		return card
 	end
 
@@ -952,12 +1024,12 @@ function BTUI:CreateWindow(config)
 			ZIndex = 4,
 			Parent = Sidebar,
 		})
-		Corner(Button, UDim.new(0, 10))
-		Stroke(Button, 0.72, 1, THEME.SoftStroke)
+		Corner(Button, UDim.new(0, 11))
+		Stroke(Button, 0.76, 1, THEME.SoftStroke)
 
 		local Indicator = New("Frame", {
 			Name = "Indicator",
-			BackgroundColor3 = THEME.Accent2,
+			BackgroundColor3 = THEME.BlueSelect,
 			BackgroundTransparency = 1,
 			Size = UDim2.fromOffset(3, 22),
 			Position = UDim2.fromOffset(5, 8),
@@ -968,18 +1040,18 @@ function BTUI:CreateWindow(config)
 
 		local iconWrap = New("Frame", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromOffset(20, 20),
-			Position = UDim2.fromOffset(14, 9),
+			Size = UDim2.fromOffset(22, 22),
+			Position = UDim2.fromOffset(13, 8),
 			ZIndex = 5,
 			Parent = Button,
 		})
-		local tabIcon = CreateIcon(iconWrap, icon, UDim2.fromOffset(16, 16), THEME.Accent2, "lucide")
+		local tabIcon = MakeIcon(iconWrap, icon, UDim2.fromOffset(16, 16), THEME.Text, "lucide")
 		if not tabIcon then
 			New("TextLabel", {
 				BackgroundTransparency = 1,
 				Size = UDim2.fromScale(1, 1),
 				Text = "•",
-				TextColor3 = THEME.Accent2,
+				TextColor3 = THEME.Text,
 				TextSize = 18,
 				Font = Enum.Font.GothamBold,
 				ZIndex = 5,
@@ -989,7 +1061,7 @@ function BTUI:CreateWindow(config)
 
 		local TabName = New("TextLabel", {
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, -44, 1, 0),
+			Size = UDim2.new(1, -42, 1, 0),
 			Position = UDim2.fromOffset(38, 0),
 			Text = name,
 			TextColor3 = THEME.Text,
@@ -1090,13 +1162,11 @@ function BTUI:CreateWindow(config)
 			end)
 			Btn.MouseLeave:Connect(function()
 				if not Locked then
-					Tween(Root, TweenInfo.new(0.15), { BackgroundTransparency = 0.16 })
+					Tween(Root, TweenInfo.new(0.15), { BackgroundTransparency = 0.14 })
 				end
 			end)
 			Btn.MouseButton1Click:Connect(function()
-				if Locked then
-					return
-				end
+				if Locked then return end
 				SafeCall(Callback)
 			end)
 
@@ -1140,9 +1210,9 @@ function BTUI:CreateWindow(config)
 			})
 
 			local Switch = New("TextButton", {
-				BackgroundColor3 = Value and THEME.Accent or Color3.fromRGB(55, 60, 58),
+				BackgroundColor3 = Value and THEME.BlueSelect or Color3.fromRGB(52, 56, 66),
 				BackgroundTransparency = 0.05,
-				Size = UDim2.fromOffset(44, 24),
+				Size = UDim2.fromOffset(46, 24),
 				Position = UDim2.new(1, -58, 0, 15),
 				Text = "",
 				AutoButtonColor = false,
@@ -1152,9 +1222,9 @@ function BTUI:CreateWindow(config)
 			Corner(Switch, UDim.new(1, 0))
 
 			local Knob = New("Frame", {
-				BackgroundColor3 = Color3.fromRGB(245, 255, 248),
+				BackgroundColor3 = Color3.fromRGB(246, 248, 252),
 				Size = UDim2.fromOffset(18, 18),
-				Position = Value and UDim2.fromOffset(23, 3) or UDim2.fromOffset(3, 3),
+				Position = Value and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
 				ZIndex = 6,
 				Parent = Switch,
 			})
@@ -1163,10 +1233,10 @@ function BTUI:CreateWindow(config)
 			local function setState(state)
 				Value = state
 				Tween(Switch, TweenInfo.new(0.16), {
-					BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(55, 60, 58),
+					BackgroundColor3 = state and THEME.BlueSelect or Color3.fromRGB(52, 56, 66),
 				})
 				Tween(Knob, TweenInfo.new(0.16), {
-					Position = state and UDim2.fromOffset(23, 3) or UDim2.fromOffset(3, 3),
+					Position = state and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
 				})
 				SafeCall(Callback, state)
 			end
@@ -1211,8 +1281,8 @@ function BTUI:CreateWindow(config)
 
 			local ValueLbl = New("TextLabel", {
 				BackgroundTransparency = 1,
-				Size = UDim2.fromOffset(80, 18),
-				Position = UDim2.new(1, -92, 0, 9),
+				Size = UDim2.fromOffset(84, 18),
+				Position = UDim2.new(1, -96, 0, 9),
 				Text = tostring(Value),
 				TextColor3 = THEME.SubText,
 				TextSize = 13,
@@ -1223,7 +1293,7 @@ function BTUI:CreateWindow(config)
 			})
 
 			local Bar = New("Frame", {
-				BackgroundColor3 = Color3.fromRGB(54, 61, 58),
+				BackgroundColor3 = Color3.fromRGB(52, 56, 66),
 				BackgroundTransparency = 0.08,
 				Size = UDim2.new(1, -28, 0, 8),
 				Position = UDim2.fromOffset(14, 39),
@@ -1233,7 +1303,7 @@ function BTUI:CreateWindow(config)
 			Corner(Bar, UDim.new(1, 0))
 
 			local Fill = New("Frame", {
-				BackgroundColor3 = THEME.Accent2,
+				BackgroundColor3 = THEME.BlueSelect,
 				Size = UDim2.fromScale(0, 1),
 				ZIndex = 6,
 				Parent = Bar,
@@ -1241,7 +1311,7 @@ function BTUI:CreateWindow(config)
 			Corner(Fill, UDim.new(1, 0))
 
 			local Knob = New("Frame", {
-				BackgroundColor3 = Color3.fromRGB(245, 255, 248),
+				BackgroundColor3 = Color3.fromRGB(246, 248, 252),
 				Size = UDim2.fromOffset(14, 14),
 				Position = UDim2.new(0, -7, 0.5, -7),
 				ZIndex = 7,
@@ -1321,7 +1391,7 @@ function BTUI:CreateWindow(config)
 
 			local Box = New("TextBox", {
 				BackgroundColor3 = THEME.BG3,
-				BackgroundTransparency = 0.10,
+				BackgroundTransparency = 0.1,
 				Size = UDim2.new(1, -28, 0, 24),
 				Position = UDim2.fromOffset(14, 30),
 				Text = Value,
@@ -1336,7 +1406,7 @@ function BTUI:CreateWindow(config)
 				Parent = Root,
 			})
 			Corner(Box, UDim.new(0, 8))
-			Stroke(Box, 0.76, 1, THEME.SoftStroke)
+			Stroke(Box, 0.78, 1, THEME.SoftStroke)
 			Pad(Box, 10, 10, 0, 0)
 
 			Box.FocusLost:Connect(function(enterPressed)
@@ -1409,13 +1479,13 @@ function BTUI:CreateWindow(config)
 				ZIndex = 6,
 				Parent = Btn,
 			})
-			local ArrowIcon = CreateIcon(ArrowWrap, "chevron-down", UDim2.fromOffset(14, 14), THEME.Accent2, "lucide")
+			local ArrowIcon = MakeIcon(ArrowWrap, "chevron-down", UDim2.fromOffset(14, 14), THEME.Text, "lucide")
 			if not ArrowIcon then
 				New("TextLabel", {
 					BackgroundTransparency = 1,
 					Size = UDim2.fromScale(1, 1),
 					Text = "⌄",
-					TextColor3 = THEME.Accent2,
+					TextColor3 = THEME.Text,
 					TextSize = 16,
 					Font = Enum.Font.GothamBold,
 					ZIndex = 6,
@@ -1451,7 +1521,7 @@ function BTUI:CreateWindow(config)
 
 			local PopupSearch = New("TextBox", {
 				BackgroundColor3 = THEME.BG3,
-				BackgroundTransparency = 0.10,
+				BackgroundTransparency = 0.1,
 				Size = UDim2.new(1, -24, 0, 28),
 				Position = UDim2.fromOffset(12, 42),
 				Text = "",
@@ -1466,7 +1536,7 @@ function BTUI:CreateWindow(config)
 				Parent = DropdownPopup,
 			})
 			Corner(PopupSearch, UDim.new(0, 8))
-			Stroke(PopupSearch, 0.76, 1, THEME.SoftStroke)
+			Stroke(PopupSearch, 0.78, 1, THEME.SoftStroke)
 			Pad(PopupSearch, 10, 10, 0, 0)
 
 			local PopupScroll = New("ScrollingFrame", {
@@ -1538,7 +1608,7 @@ function BTUI:CreateWindow(config)
 						Parent = PopupScroll,
 					})
 					Corner(OptBtn, UDim.new(0, 9))
-					Stroke(OptBtn, 0.80, 1, THEME.SoftStroke)
+					Stroke(OptBtn, 0.8, 1, THEME.SoftStroke)
 
 					New("TextLabel", {
 						BackgroundTransparency = 1,
@@ -1577,7 +1647,6 @@ function BTUI:CreateWindow(config)
 			end
 
 			buildOptions(Values)
-
 			PopupSearch:GetPropertyChangedSignal("Text"):Connect(applyFilter)
 
 			Btn.MouseButton1Click:Connect(function()
@@ -1616,7 +1685,6 @@ function BTUI:CreateWindow(config)
 		end)
 
 		table.insert(window.Tabs, tab)
-
 		if not window.ActiveTab then
 			selectTab(tab)
 		end
@@ -1673,18 +1741,12 @@ function BTUI:CreateWindow(config)
 		return Main
 	end
 
-	window.CreateTab = window.CreateTab
-	window.CreateMinimizeBtn = window.CreateMinimizeBtn
-	window.Destroy = window.Destroy
-	window.SetVisible = window.SetVisible
-	window.Toggle = window.Toggle
-
 	return setmetatable(window, {
 		__index = BTUI,
 	})
 end
 
-BTUI.SetIconModule = function(module)
+function BTUI.SetIconModule(module)
 	IconModule = module
 end
 
