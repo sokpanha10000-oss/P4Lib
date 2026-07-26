@@ -1,4 +1,4 @@
--- BTUI Library (Dark Green Nexus Theme v2 - Fixed Icons & Better Colors)
+-- BTUI Library (Dark Green Nexus Theme v3 - Fixed Slider Knob & TopBar Layout)
 local cloneref = (cloneref or clonereference or function(instance) return instance end)
 local TweenService = cloneref(game:GetService("TweenService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
@@ -148,7 +148,7 @@ end
 
 local BTUI = {}
 
--- Theme Colors (Dark Charcoal + Green Accents)
+-- Theme Colors
 local Theme = {
     BgDark = Color3.fromRGB(20, 20, 23),
     BgDarker = Color3.fromRGB(15, 15, 18),
@@ -198,7 +198,6 @@ local function SmartIcon(iconStr, iconType, size, color, parent, position)
             inst.Position = position or UDim2.new(0, 0, 0, 0)
             if color then inst.ImageColor3 = color end
         else
-            -- Fallback transparent (prevents broken UI if icon fails)
             inst = Create("ImageLabel", { Parent = parent, BackgroundTransparency = 1, Size = size, Position = position, Image = "" })
         end
     end
@@ -246,17 +245,18 @@ function BTUI:CreateWindow(config)
 
     SmartIcon(config.Image, "lucide", UDim2.new(0, 20, 0, 20), Theme.GreenAccent, TopBar, UDim2.new(0, 10, 0.5, -10))
     
+    -- Title now takes dynamic width but stops before the search bar
     Create("TextLabel", {
-        Parent = TopBar, BackgroundTransparency = 1, Size = UDim2.new(0, 200, 0, 20), Position = UDim2.new(0, 35, 0.5, -10),
+        Parent = TopBar, BackgroundTransparency = 1, Size = UDim2.new(1, -240, 0, 20), Position = UDim2.new(0, 35, 0.5, -10),
         Font = Enum.Font.GothamBold, Text = config.Title or "Script Hub", TextColor3 = Theme.TextWhite,
-        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left
+        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd
     })
 
     if config.Subtitle then
         Create("TextLabel", {
-            Parent = TopBar, BackgroundTransparency = 1, Size = UDim2.new(0, 200, 0, 12), Position = UDim2.new(0, 35, 0.5, 2),
+            Parent = TopBar, BackgroundTransparency = 1, Size = UDim2.new(1, -240, 0, 12), Position = UDim2.new(0, 35, 0.5, 2),
             Font = Enum.Font.Gotham, Text = config.Subtitle, TextColor3 = Theme.TextGrey,
-            TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left
+            TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd
         })
     end
 
@@ -265,18 +265,20 @@ function BTUI:CreateWindow(config)
         SearchBar = Create("TextBox", {
             Parent = TopBar, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(0, 150, 0, 25), Position = UDim2.new(1, -220, 0.5, -12.5),
             PlaceholderText = "Search...", Text = "", Font = Enum.Font.Gotham, TextColor3 = Theme.TextWhite,
-            TextSize = 12, PlaceholderColor3 = Theme.TextGrey, TextXAlignment = Enum.TextXAlignment.Left
+            TextSize = 12, PlaceholderColor3 = Theme.TextGrey, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2
         })
         Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = SearchBar })
         Create("UIPadding", { PaddingLeft = UDim.new(0, 30), Parent = SearchBar })
-        SmartIcon("search", "lucide", UDim2.new(0, 15, 0, 15), Theme.TextGrey, SearchBar, UDim2.new(0, 8, 0.5, -7.5))
+        local SIcon = SmartIcon("search", "lucide", UDim2.new(0, 15, 0, 15), Theme.TextGrey, SearchBar, UDim2.new(0, 8, 0.5, -7.5))
+        if SIcon then SIcon.ZIndex = 3 end
     end
 
     local CloseBtn = Create("TextButton", {
         Parent = TopBar, BackgroundTransparency = 1, Size = UDim2.new(0, 25, 0, 25), Position = UDim2.new(1, -35, 0.5, -12.5),
-        Text = "", AutoButtonColor = false
+        Text = "", AutoButtonColor = false, ZIndex = 2
     })
     local CloseIcon = SmartIcon("x", "lucide", UDim2.new(0, 18, 0, 18), Theme.TextGrey, CloseBtn, UDim2.new(0.5, -9, 0.5, -9))
+    if CloseIcon then CloseIcon.ZIndex = 3 end
     CloseBtn.MouseEnter:Connect(function() TweenService:Create(CloseIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(255, 50, 50)}):Play() end)
     CloseBtn.MouseLeave:Connect(function() TweenService:Create(CloseIcon, TweenInfo.new(0.2), {ImageColor3 = Theme.TextGrey}):Play() end)
     CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
@@ -465,25 +467,65 @@ function BTUI:CreateWindow(config)
                 Font = Enum.Font.Gotham, Text = tostring(sConfig.Value.Default), TextColor3 = Theme.GreenAccent,
                 TextSize = 12, TextXAlignment = Enum.TextXAlignment.Right
             })
-            local Track = Create("Frame", { Parent = SliderFrame, BackgroundColor3 = Theme.Hover, Size = UDim2.new(1, -20, 0, 4), Position = UDim2.new(0, 10, 0, 30) })
+            
+            -- Hitbox for easier dragging
+            local Hitbox = Create("TextButton", {
+                Parent = SliderFrame, BackgroundTransparency = 1, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 25),
+                Text = "", AutoButtonColor = false
+            })
+            
+            local Track = Create("Frame", { Parent = Hitbox, BackgroundColor3 = Theme.Hover, Size = UDim2.new(1, 0, 0, 4), Position = UDim2.new(0, 0, 0.5, -2), ZIndex = 2 })
             Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Track })
-            local Fill = Create("Frame", { Parent = Track, BackgroundColor3 = Theme.GreenAccent, Size = UDim2.new(0, 0, 1, 0) })
+            local Fill = Create("Frame", { Parent = Track, BackgroundColor3 = Theme.GreenAccent, Size = UDim2.new(0, 0, 1, 0), ZIndex = 3 })
             Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Fill })
+            
+            -- Added Slider Knob (Handle)
+            local Knob = Create("Frame", { 
+                Parent = Track, BackgroundColor3 = Color3.fromRGB(255, 255, 255), 
+                Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(0, 0, 0.5, -7), ZIndex = 4 
+            })
+            Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Knob })
             
             local dragging = false
             local min, max, step = sConfig.Value.Min, sConfig.Value.Max, sConfig.Step or 1
+            
             local function update(input)
                 local perc = math.clamp((input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
                 local val = min + (max - min) * perc
                 if step >= 1 then val = math.floor(val / step) * step end
                 val = math.clamp(val, min, max)
-                Fill.Size = UDim2.new(perc, 0, 1, 0)
+                
+                -- Recalculate percentage based on the snapped value
+                local steppedPerc = (val - min) / (max - min)
+                Fill.Size = UDim2.new(steppedPerc, 0, 1, 0)
+                Knob.Position = UDim2.new(steppedPerc, -7, 0.5, -7) -- Center knob on the line
+                
                 ValLabel.Text = string.format(step < 1 and "%.1f" or "%d", val)
                 if sConfig.Callback then sConfig.Callback(val) end
             end
-            Track.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; update(input) end end)
-            UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
-            UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then update(input) end end)
+            
+            Hitbox.InputBegan:Connect(function(input) 
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    -- Scale up knob on drag
+                    TweenService:Create(Knob, TweenInfo.new(0.2), {Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(Knob.Position.X.Scale, -9, 0.5, -9)}):Play()
+                    update(input) 
+                end
+            end)
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    if dragging then
+                        dragging = false
+                        -- Scale down knob on release
+                        TweenService:Create(Knob, TweenInfo.new(0.2), {Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(Knob.Position.X.Scale, -7, 0.5, -7)}):Play()
+                    end
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    update(input)
+                end
+            end)
         end
 
         function Tab:CreateInput(iConfig)
@@ -522,15 +564,14 @@ function BTUI:CreateWindow(config)
             local isOpen = false
             local currentValues = dConfig.Values or {}
 
-            -- Blurred background to focus dropdown
             local DropBg = Create("TextButton", {
                 Parent = ScreenGui, BackgroundColor3 = Color3.new(0,0,0), BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 1, 0), Text = "", AutoButtonColor = false, Visible = false
+                Size = UDim2.new(1, 0, 1, 0), Text = "", AutoButtonColor = false, Visible = false, ZIndex = 5
             })
 
             local DropGUI = Create("Frame", {
                 Parent = ScreenGui, BackgroundColor3 = Theme.BgDark, BackgroundTransparency = 0.05,
-                Size = UDim2.new(0, 250, 0, 250), Position = UDim2.new(0.5, -125, 0.5, -125), Visible = false
+                Size = UDim2.new(0, 250, 0, 250), Position = UDim2.new(0.5, -125, 0.5, -125), Visible = false, ZIndex = 6
             })
             Create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = DropGUI })
             Create("UIStroke", { Color = Theme.GreenDark, Thickness = 1, Parent = DropGUI })
@@ -538,15 +579,16 @@ function BTUI:CreateWindow(config)
             local Search = Create("TextBox", {
                 Parent = DropGUI, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 10),
                 PlaceholderText = "Search...", Text = "", Font = Enum.Font.Gotham, TextColor3 = Theme.TextWhite,
-                TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
+                TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 7
             })
             Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Search })
             Create("UIPadding", { PaddingLeft = UDim.new(0, 30), Parent = Search })
-            SmartIcon("search", "lucide", UDim2.new(0, 15, 0, 15), Theme.TextGrey, Search, UDim2.new(0, 8, 0.5, -7.5))
+            local SIcon2 = SmartIcon("search", "lucide", UDim2.new(0, 15, 0, 15), Theme.TextGrey, Search, UDim2.new(0, 8, 0.5, -7.5))
+            if SIcon2 then SIcon2.ZIndex = 8 end
             
             local List = Create("ScrollingFrame", {
                 Parent = DropGUI, BackgroundTransparency = 1, Size = UDim2.new(1, -20, 1, -50), Position = UDim2.new(0, 10, 0, 50),
-                CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 2, BorderSizePixel = 0
+                CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 2, BorderSizePixel = 0, ZIndex = 7
             })
             Create("UIListLayout", { Parent = List, Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder })
 
@@ -555,13 +597,13 @@ function BTUI:CreateWindow(config)
                 for _, v in pairs(val) do
                     local Btn = Create("TextButton", {
                         Parent = List, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(1, 0, 0, 30),
-                        Text = "", AutoButtonColor = false
+                        Text = "", AutoButtonColor = false, ZIndex = 7
                     })
                     Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Btn })
                     Create("TextLabel", {
                         Parent = Btn, BackgroundTransparency = 1, Size = UDim2.new(1, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0),
                         Text = v, Font = Enum.Font.Gotham, TextColor3 = Theme.TextWhite,
-                        TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
+                        TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8
                     })
                     Btn.MouseEnter:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Hover}):Play() end)
                     Btn.MouseLeave:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.BgDarker}):Play() end)
