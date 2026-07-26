@@ -1,4 +1,4 @@
--- BTUI Library (Dark Green Nexus Theme v3 - Fixed Slider Knob & TopBar Layout)
+-- BTUI Library (Dark Green Nexus Theme v4 - Cooler Aesthetics & "Click" Button)
 local cloneref = (cloneref or clonereference or function(instance) return instance end)
 local TweenService = cloneref(game:GetService("TweenService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
@@ -172,7 +172,6 @@ end
 
 IconModule.Init(Create, nil)
 
--- Smart icon handler
 local function SmartIcon(iconStr, iconType, size, color, parent, position)
     local inst = nil
     if type(iconStr) == "number" or (type(iconStr) == "string" and iconStr:match("^%d+$")) then
@@ -228,16 +227,33 @@ end
 function BTUI:CreateWindow(config)
     local ScreenGui = Create("ScreenGui", { Name = "BTUI_" .. tostring(math.random(1000, 9999)), Parent = CoreGui, ResetOnSpawn = false })
 
+    -- Drop Shadow for Cool Aesthetics
+    local Shadow = Create("ImageLabel", {
+        Parent = ScreenGui, BackgroundTransparency = 1, Size = UDim2.new(0, 570, 0, 360),
+        Position = UDim2.new(0.5, -285, 0.5, -180), Image = "rbxassetid://1316045217", -- standard soft shadow
+        ImageColor3 = Color3.fromRGB(0, 0, 0), ImageTransparency = 0.5, ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(10, 10, 118, 118)
+    })
+
     local MainFrame = Create("Frame", {
-        Name = "MainFrame", Parent = ScreenGui, BackgroundColor3 = Theme.BgDark, BackgroundTransparency = 0.1,
+        Name = "MainFrame", Parent = ScreenGui, BackgroundColor3 = Theme.BgDark, BackgroundTransparency = 0.05,
         Size = UDim2.new(0, 550, 0, 340), Position = UDim2.new(0.5, -275, 0.5, -170), Active = true
     })
     Create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = MainFrame })
     Create("UIStroke", { Color = Theme.Stroke, Thickness = 1.5, Parent = MainFrame })
+    
+    -- Subtle gradient overlay for depth
+    local MainGradient = Create("UIGradient", {
+        Parent = MainFrame, Rotation = 90,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 35)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 18))
+        })
+    })
+    
     MakeDraggable(MainFrame)
 
     local TopBar = Create("Frame", {
-        Name = "TopBar", Parent = MainFrame, BackgroundColor3 = Theme.TopBar, BackgroundTransparency = 0,
+        Name = "TopBar", Parent = MainFrame, BackgroundColor3 = Theme.TopBar, BackgroundTransparency = 0.2,
         Size = UDim2.new(1, 0, 0, 40), BorderSizePixel = 0
     })
     Create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = TopBar })
@@ -245,7 +261,6 @@ function BTUI:CreateWindow(config)
 
     SmartIcon(config.Image, "lucide", UDim2.new(0, 20, 0, 20), Theme.GreenAccent, TopBar, UDim2.new(0, 10, 0.5, -10))
     
-    -- Title now takes dynamic width but stops before the search bar
     Create("TextLabel", {
         Parent = TopBar, BackgroundTransparency = 1, Size = UDim2.new(1, -240, 0, 20), Position = UDim2.new(0, 35, 0.5, -10),
         Font = Enum.Font.GothamBold, Text = config.Title or "Script Hub", TextColor3 = Theme.TextWhite,
@@ -284,7 +299,7 @@ function BTUI:CreateWindow(config)
     CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
     local TabContainer = Create("Frame", {
-        Parent = MainFrame, BackgroundColor3 = Theme.TopBar, BackgroundTransparency = 0,
+        Parent = MainFrame, BackgroundColor3 = Theme.TopBar, BackgroundTransparency = 0.2,
         Size = UDim2.new(0, 140, 1, -50), Position = UDim2.new(0, 10, 0, 45), BorderSizePixel = 0
     })
     Create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = TabContainer })
@@ -296,7 +311,7 @@ function BTUI:CreateWindow(config)
     Create("UIListLayout", { Parent = TabList, Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder })
 
     local ElementContainer = Create("Frame", {
-        Parent = MainFrame, BackgroundColor3 = Theme.BgDark, BackgroundTransparency = 0,
+        Parent = MainFrame, BackgroundColor3 = Theme.BgDark, BackgroundTransparency = 0.5,
         Size = UDim2.new(1, -170, 1, -50), Position = UDim2.new(0, 160, 0, 45), BorderSizePixel = 0
     })
     Create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ElementContainer })
@@ -319,16 +334,21 @@ function BTUI:CreateWindow(config)
         FloatBtn.MouseButton1Click:Connect(function()
             isMinimized = not isMinimized
             if isMinimized then
-                MainFrame.Size = UDim2.new(0, 550, 0, 340)
+                TweenService:Create(Shadow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
                 TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
                     Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)
                 }):Play()
                 task.wait(0.3)
                 MainFrame.Visible = false
+                Shadow.Visible = false
             else
                 MainFrame.Visible = true
+                Shadow.Visible = true
                 MainFrame.Size = UDim2.new(0, 0, 0, 0)
                 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+                Shadow.Size = UDim2.new(0, 0, 0, 0)
+                Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+                TweenService:Create(Shadow, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 570, 0, 360), Position = UDim2.new(0.5, -285, 0.5, -180)}):Play()
                 TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
                     Size = UDim2.new(0, 550, 0, 340), Position = UDim2.new(0.5, -275, 0.5, -170)
                 }):Play()
@@ -347,9 +367,16 @@ function BTUI:CreateWindow(config)
         })
         Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = TabBtn })
         
-        local Icon = SmartIcon(iconName, "lucide", UDim2.new(0, 16, 0, 16), Theme.TextGrey, TabBtn, UDim2.new(0, 8, 0.5, -8))
+        -- Active indicator (Glowing line on the left)
+        local Indicator = Create("Frame", {
+            Parent = TabBtn, BackgroundColor3 = Theme.GreenAccent, Size = UDim2.new(0, 0, 0, 18),
+            Position = UDim2.new(0, -5, 0.5, -9), BorderSizePixel = 0
+        })
+        Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Indicator })
+        
+        local Icon = SmartIcon(iconName, "lucide", UDim2.new(0, 16, 0, 16), Theme.TextGrey, TabBtn, UDim2.new(0, 10, 0.5, -8))
         local Label = Create("TextLabel", {
-            Parent = TabBtn, BackgroundTransparency = 1, Size = UDim2.new(1, -30, 1, 0), Position = UDim2.new(0, 30, 0, 0),
+            Parent = TabBtn, BackgroundTransparency = 1, Size = UDim2.new(1, -30, 1, 0), Position = UDim2.new(0, 32, 0, 0),
             Font = Enum.Font.GothamSemibold, Text = tabName, TextColor3 = Theme.TextGrey,
             TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
         })
@@ -358,10 +385,11 @@ function BTUI:CreateWindow(config)
             Parent = Pages, BackgroundTransparency = 1, Size = UDim2.new(1, -20, 1, -20), Position = UDim2.new(0, 10, 0, 10),
             CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 2, Visible = false, BorderSizePixel = 0
         })
-        Create("UIListLayout", { Parent = Page, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+        Create("UIListLayout", { Parent = Page, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
 
         if #Tabs == 0 then
-            TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
+            TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {Size = UDim2.new(0, 3, 0, 18)}):Play()
             Page.Visible = true
             Label.TextColor3 = Theme.GreenAccent
             if Icon then Icon.ImageColor3 = Theme.GreenAccent end
@@ -370,11 +398,13 @@ function BTUI:CreateWindow(config)
         TabBtn.MouseButton1Click:Connect(function()
             for _, t in pairs(Tabs) do
                 TweenService:Create(t.Button, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+                TweenService:Create(t.Indicator, TweenInfo.new(0.2), {Size = UDim2.new(0, 0, 0, 18)}):Play()
                 t.Page.Visible = false
                 t.Label.TextColor3 = Theme.TextGrey
                 if t.Icon then t.Icon.ImageColor3 = Theme.TextGrey end
             end
-            TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
+            TweenService:Create(TabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {Size = UDim2.new(0, 3, 0, 18)}):Play()
             Page.Visible = true
             Label.TextColor3 = Theme.GreenAccent
             if Icon then Icon.ImageColor3 = Theme.GreenAccent end
@@ -399,38 +429,53 @@ function BTUI:CreateWindow(config)
         end
 
         local Tab = {}
-        table.insert(Tabs, {Button = TabBtn, Page = Page, Label = Label, Icon = Icon})
+        table.insert(Tabs, {Button = TabBtn, Page = Page, Label = Label, Icon = Icon, Indicator = Indicator})
 
         function Tab:CreateButton(bConfig)
-            local BtnFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 35) })
-            Create("TextLabel", {
-                Name = "Title", Parent = BtnFrame, BackgroundTransparency = 1, Size = UDim2.new(1, -20, 1, 0), Position = UDim2.new(0, 10, 0, 0),
+            local BtnFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40) })
+            local Title = Create("TextLabel", {
+                Name = "Title", Parent = BtnFrame, BackgroundTransparency = 1, Size = UDim2.new(1, -110, 1, 0), Position = UDim2.new(0, 10, 0, 0),
                 Font = Enum.Font.GothamSemibold, Text = bConfig.Title or "Button", TextColor3 = Theme.TextWhite,
-                TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
+                TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left
             })
-            local Btn = Create("TextButton", {
-                Parent = BtnFrame, BackgroundColor3 = Theme.Hover, BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 1, 0), Text = "", AutoButtonColor = false
+            
+            -- "Click" Rectangular Button
+            local ClickBtn = Create("TextButton", {
+                Parent = BtnFrame, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(0, 90, 0, 28), Position = UDim2.new(1, -100, 0.5, -14),
+                Text = "Click", Font = Enum.Font.GothamBold, TextColor3 = Theme.GreenAccent,
+                TextSize = 12, AutoButtonColor = false
             })
-            Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Btn })
-            Btn.MouseEnter:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.8}):Play() end)
-            Btn.MouseLeave:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play() end)
-            Btn.MouseButton1Click:Connect(function()
+            Create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ClickBtn })
+            local ClickStroke = Create("UIStroke", { Color = Theme.GreenDark, Thickness = 1, Parent = ClickBtn })
+            
+            ClickBtn.MouseEnter:Connect(function() 
+                TweenService:Create(ClickBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.GreenDark}):Play()
+                TweenService:Create(ClickStroke, TweenInfo.new(0.2), {Color = Theme.GreenAccent}):Play()
+                TweenService:Create(ClickBtn, TweenInfo.new(0.2), {TextColor3 = Theme.TextWhite}):Play()
+            end)
+            ClickBtn.MouseLeave:Connect(function() 
+                TweenService:Create(ClickBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.BgDarker}):Play()
+                TweenService:Create(ClickStroke, TweenInfo.new(0.2), {Color = Theme.GreenDark}):Play()
+                TweenService:Create(ClickBtn, TweenInfo.new(0.2), {TextColor3 = Theme.GreenAccent}):Play()
+            end)
+            ClickBtn.MouseButton1Click:Connect(function()
                 if not bConfig.Locked then
-                    TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Theme.GreenDark, BackgroundTransparency = 0}):Play()
-                    task.wait(0.1)
-                    TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Theme.Hover, BackgroundTransparency = 1}):Play()
+                    -- Bounce click animation
+                    TweenService:Create(ClickBtn, TweenInfo.new(0.08, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = UDim2.new(0, 82, 0, 25), Position = UDim2.new(1, -96, 0.5, -12.5)}):Play()
+                    task.wait(0.08)
+                    TweenService:Create(ClickBtn, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 90, 0, 28), Position = UDim2.new(1, -100, 0.5, -14)}):Play()
+                    
                     if bConfig.Callback then bConfig.Callback() end
                 end
             end)
         end
 
         function Tab:CreateToggle(tConfig)
-            local ToggleFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 35) })
+            local ToggleFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40) })
             local Title = Create("TextLabel", {
                 Name = "Title", Parent = ToggleFrame, BackgroundTransparency = 1, Size = UDim2.new(1, -60, 1, 0), Position = UDim2.new(0, 10, 0, 0),
                 Font = Enum.Font.GothamSemibold, Text = tConfig.Title or "Toggle", TextColor3 = Theme.TextWhite,
-                TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
+                TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left
             })
             local Switch = Create("TextButton", {
                 Parent = ToggleFrame, BackgroundColor3 = Theme.Hover, Size = UDim2.new(0, 40, 0, 20),
@@ -458,9 +503,9 @@ function BTUI:CreateWindow(config)
         function Tab:CreateSlider(sConfig)
             local SliderFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 45) })
             local Title = Create("TextLabel", {
-                Name = "Title", Parent = SliderFrame, BackgroundTransparency = 1, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 5),
+                Name = "Title", Parent = SliderFrame, BackgroundTransparency = 1, Size = UDim2.new(1, -60, 0, 20), Position = UDim2.new(0, 10, 0, 5),
                 Font = Enum.Font.GothamSemibold, Text = sConfig.Title or "Slider", TextColor3 = Theme.TextWhite,
-                TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
+                TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left
             })
             local ValLabel = Create("TextLabel", {
                 Parent = SliderFrame, BackgroundTransparency = 1, Size = UDim2.new(0, 50, 0, 20), Position = UDim2.new(1, -60, 0, 5),
@@ -468,7 +513,6 @@ function BTUI:CreateWindow(config)
                 TextSize = 12, TextXAlignment = Enum.TextXAlignment.Right
             })
             
-            -- Hitbox for easier dragging
             local Hitbox = Create("TextButton", {
                 Parent = SliderFrame, BackgroundTransparency = 1, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 25),
                 Text = "", AutoButtonColor = false
@@ -479,7 +523,6 @@ function BTUI:CreateWindow(config)
             local Fill = Create("Frame", { Parent = Track, BackgroundColor3 = Theme.GreenAccent, Size = UDim2.new(0, 0, 1, 0), ZIndex = 3 })
             Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Fill })
             
-            -- Added Slider Knob (Handle)
             local Knob = Create("Frame", { 
                 Parent = Track, BackgroundColor3 = Color3.fromRGB(255, 255, 255), 
                 Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(0, 0, 0.5, -7), ZIndex = 4 
@@ -495,10 +538,9 @@ function BTUI:CreateWindow(config)
                 if step >= 1 then val = math.floor(val / step) * step end
                 val = math.clamp(val, min, max)
                 
-                -- Recalculate percentage based on the snapped value
                 local steppedPerc = (val - min) / (max - min)
                 Fill.Size = UDim2.new(steppedPerc, 0, 1, 0)
-                Knob.Position = UDim2.new(steppedPerc, -7, 0.5, -7) -- Center knob on the line
+                Knob.Position = UDim2.new(steppedPerc, -7, 0.5, -7) 
                 
                 ValLabel.Text = string.format(step < 1 and "%.1f" or "%d", val)
                 if sConfig.Callback then sConfig.Callback(val) end
@@ -507,7 +549,6 @@ function BTUI:CreateWindow(config)
             Hitbox.InputBegan:Connect(function(input) 
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     dragging = true
-                    -- Scale up knob on drag
                     TweenService:Create(Knob, TweenInfo.new(0.2), {Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(Knob.Position.X.Scale, -9, 0.5, -9)}):Play()
                     update(input) 
                 end
@@ -516,7 +557,6 @@ function BTUI:CreateWindow(config)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     if dragging then
                         dragging = false
-                        -- Scale down knob on release
                         TweenService:Create(Knob, TweenInfo.new(0.2), {Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(Knob.Position.X.Scale, -7, 0.5, -7)}):Play()
                     end
                 end
@@ -529,14 +569,14 @@ function BTUI:CreateWindow(config)
         end
 
         function Tab:CreateInput(iConfig)
-            local InputFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 35) })
+            local InputFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40) })
             local Title = Create("TextLabel", {
                 Name = "Title", Parent = InputFrame, BackgroundTransparency = 1, Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(0, 10, 0, 0),
                 Font = Enum.Font.GothamSemibold, Text = iConfig.Title or "Input", TextColor3 = Theme.TextWhite,
-                TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
+                TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left
             })
             local Box = Create("TextBox", {
-                Parent = InputFrame, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(1, -120, 0, 25), Position = UDim2.new(0, 110, 0.5, -12.5),
+                Parent = InputFrame, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(1, -120, 0, 28), Position = UDim2.new(0, 110, 0.5, -14),
                 Text = iConfig.Value or "", PlaceholderText = iConfig.Placeholder or "Enter...", Font = Enum.Font.Gotham,
                 TextColor3 = Theme.TextWhite, TextSize = 12, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left
             })
@@ -546,14 +586,14 @@ function BTUI:CreateWindow(config)
         end
 
         function Tab:CreateDropdown(dConfig)
-            local DropFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 35) })
+            local DropFrame = Create("Frame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40) })
             local Title = Create("TextLabel", {
                 Name = "Title", Parent = DropFrame, BackgroundTransparency = 1, Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(0, 10, 0, 0),
                 Font = Enum.Font.GothamSemibold, Text = dConfig.Title or "Dropdown", TextColor3 = Theme.TextWhite,
-                TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left
+                TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left
             })
             local ValBtn = Create("TextButton", {
-                Parent = DropFrame, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(1, -120, 0, 25), Position = UDim2.new(0, 110, 0.5, -12.5),
+                Parent = DropFrame, BackgroundColor3 = Theme.BgDarker, Size = UDim2.new(1, -120, 0, 28), Position = UDim2.new(0, 110, 0.5, -14),
                 Text = dConfig.Value or "Select...", Font = Enum.Font.Gotham, TextColor3 = Theme.GreenAccent,
                 TextSize = 12, AutoButtonColor = false, TextXAlignment = Enum.TextXAlignment.Left
             })
