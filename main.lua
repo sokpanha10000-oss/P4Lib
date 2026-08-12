@@ -20,71 +20,133 @@ local LocalPlayer = Players.LocalPlayer
 --============================================================
 -- ICONS (Lucide) -- with safe fallback
 --============================================================
-local Icons
+-- The Footagesus Icons module can come back in a few different shapes
+-- depending on version: a plain table keyed by name, a table with a
+-- :Get()/.Get()/.GetAsset() accessor, or a callable module. We probe for
+-- all of them so icon lookup doesn't silently fail closed.
+local IconsModule
+local IconsLoadOk = false
 do
 	local ok, result = pcall(function()
 		return loadstring(game:HttpGet(
-			"https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"
+			"https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua",
+			true
 		))()
 	end)
 	if ok and result then
-		Icons = result
+		IconsModule = result
+		IconsLoadOk = true
 	else
-		Icons = setmetatable({}, {
-			__index = function()
-				-- returns a blank fallback icon descriptor
-				return { id = "rbxassetid://0", imageRectOffset = Vector2.new(0,0), imageRectSize = Vector2.new(0,0) }
-			end
-		})
+		warn("[BTUI] Failed to load Lucide icon library: " .. tostring(result))
 	end
 end
 
-local function GetIcon(name)
-	if not name or name == "" then return nil end
-	local ok, icon = pcall(function()
-		return Icons[name]
-	end)
-	if ok then return icon end
+-- Normalizes whatever the icon lookup returns into {Image=, ImageRectOffset=, ImageRectSize=}
+local function NormalizeIconData(icon)
+	if not icon then return nil end
+
+	if typeof(icon) == "string" then
+		-- some builds return a bare asset id / rbxassetid string
+		return { Image = icon, ImageRectOffset = Vector2.new(0,0), ImageRectSize = Vector2.new(0,0) }
+	end
+
+	if typeof(icon) == "table" then
+		local image = icon.id or icon.Id or icon.image or icon.Image or icon.assetId or icon.AssetId
+		local offset = icon.imageRectOffset or icon.ImageRectOffset
+		local size = icon.imageRectSize or icon.ImageRectSize
+		if image then
+			if typeof(image) == "number" then
+				image = "rbxassetid://" .. tostring(image)
+			elseif typeof(image) == "string" and image:match("^%d+$") then
+				image = "rbxassetid://" .. image
+			end
+			return {
+				Image = image,
+				ImageRectOffset = offset or Vector2.new(0,0),
+				ImageRectSize = size or Vector2.new(0,0),
+			}
+		end
+	end
+
 	return nil
 end
 
--- resolves either a lucide icon name, an asset id (number/string), or rbxassetid:// string
+local function GetIcon(name)
+	if not IconsLoadOk or not name or name == "" then return nil end
+
+	-- try every plausible access pattern; return the first that yields data
+	local attempts = {
+		function() return IconsModule[name] end,
+		function() return IconsModule.Get and IconsModule:Get(name) end,
+		function() return IconsModule.Get and IconsModule.Get(name) end,
+		function() return IconsModule.GetAsset and IconsModule:GetAsset(name) end,
+		function() return typeof(IconsModule) == "function" and IconsModule(name) end,
+	}
+
+	for _, attempt in ipairs(attempts) do
+		local ok, icon = pcall(attempt)
+		if ok and icon then
+			local normalized = NormalizeIconData(icon)
+			if normalized then return normalized end
+		end
+	end
+
+	return nil
+end
+
+-- Resolves ANY of: lucide icon name (string), numeric asset id (number),
+-- numeric asset id (string of digits), full "rbxassetid://..." string,
+-- or a full "http(s)://..." decal/image url. Falls back gracefully and
+-- never throws, so a bad icon never blanks out unrelated UI.
 local function ResolveImage(imgTarget, input)
-	if input == nil then
+	if not imgTarget then return end
+
+	-- always reset rect first so a previous lucide sprite doesn't bleed through
+	imgTarget.ImageRectOffset = Vector2.new(0, 0)
+	imgTarget.ImageRectSize = Vector2.new(0, 0)
+
+	if input == nil or input == "" then
 		imgTarget.Image = ""
+		imgTarget.Visible = false
 		return
 	end
 
+	imgTarget.Visible = true
+
 	if typeof(input) == "number" then
-		imgTarget.Image = "rbxassetid://" .. tostring(input)
-		imgTarget.ImageRectOffset = Vector2.new(0,0)
-		imgTarget.ImageRectSize = Vector2.new(0,0)
+		imgTarget.Image = "rbxassetid://" .. tostring(math.floor(input))
 		return
 	end
 
 	if typeof(input) == "string" then
-		if input:match("^rbxassetid://") or input:match("^http") then
+		if input:match("^rbxassetid://") then
 			imgTarget.Image = input
-			imgTarget.ImageRectOffset = Vector2.new(0,0)
-			imgTarget.ImageRectSize = Vector2.new(0,0)
-			return
-		elseif input:match("^%d+$") then
-			imgTarget.Image = "rbxassetid://" .. input
-			imgTarget.ImageRectOffset = Vector2.new(0,0)
-			imgTarget.ImageRectSize = Vector2.new(0,0)
-			return
-		else
-			-- treat as lucide icon name
-			local icon = GetIcon(input)
-			if icon then
-				imgTarget.Image = icon.id or icon.Image or ""
-				imgTarget.ImageRectOffset = icon.imageRectOffset or icon.ImageRectOffset or Vector2.new(0,0)
-				imgTarget.ImageRectSize = icon.imageRectSize or icon.ImageRectSize or Vector2.new(0,0)
-			else
-				imgTarget.Image = ""
-			end
 			return
 		end
+		if input:match("^https?://") then
+			imgTarget.Image = input
+			return
+		end
+		if input:match("^%d+$") then
+			imgTarget.Image = "rbxassetid://" .. input
+			return
+		end
+
+		-- treat as a lucide icon name
+		local icon = GetIcon(input)
+		if icon then
+			imgTarget.Image = icon.Image
+			imgTarget.ImageRectOffset = icon.ImageRectOffset
+			imgTarget.ImageRectSize = icon.ImageRectSize
+		else
+			-- icon name not found: don't leave a broken/blank box invisible,
+			-- just clear the image so layout stays intact, and warn so it's debuggable
+			imgTarget.Image = ""
+			if IconsLoadOk then
+				warn(("[BTUI] Icon '%s' not found in Lucide icon set"):format(tostring(input)))
+			end
+		end
+		return
 	end
 end
 
@@ -543,13 +605,17 @@ function BTUI:CreateWindow(config)
 	setmetatable(Window, Window)
 
 	--========================================================
-	-- CreateMinimizeBtn -> floating button that toggles UI
+	-- CreateMinimizeBtn -> single floating button that toggles
+	-- the whole UI open/closed. Starts open (window visible,
+	-- floating button hidden); clicking it closes the window
+	-- and reveals itself as the way back in.
 	--========================================================
 	function Window:CreateMinimizeBtn(cfg)
 		cfg = cfg or {}
+
 		local Floating = Create("Frame", {
 			Name = "FloatingMinimize",
-			Size = UDim2.fromOffset(46, 46),
+			Size = UDim2.fromOffset(0, 0),
 			Position = UDim2.fromOffset(20, 20),
 			BackgroundColor3 = Theme.Background,
 			BackgroundTransparency = Theme.BackgroundTransparency,
@@ -559,71 +625,92 @@ function BTUI:CreateWindow(config)
 		}, { Corner(23), Stroke(Theme.Stroke, 1, 0.4) })
 
 		local Btn = Create("ImageButton", {
-			Size = UDim2.new(1,0,1,0),
+			Size = UDim2.new(1, 0, 1, 0),
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
 			Parent = Floating,
 		})
 
 		local Ico = Create("ImageLabel", {
-			Size = UDim2.fromOffset(22,22),
-			Position = UDim2.new(0.5,-11,0.5,-11),
+			Size = UDim2.fromOffset(22, 22),
+			Position = UDim2.new(0.5, -11, 0.5, -11),
 			BackgroundTransparency = 1,
 			ImageColor3 = Theme.Text,
 			Parent = Floating,
 		})
 		ResolveImage(Ico, cfg.Image)
+		if not cfg.Image then
+			-- default icon if none supplied, so the button is never blank
+			ResolveImage(Ico, "layout-grid")
+		end
+
+		local TitleTip
+		if cfg.Title then
+			TitleTip = Create("TextLabel", {
+				Name = "Tip",
+				Size = UDim2.fromOffset(0, 26),
+				AutomaticSize = Enum.AutomaticSize.X,
+				Position = UDim2.new(1, 10, 0.5, -13),
+				BackgroundColor3 = Theme.Background,
+				BackgroundTransparency = 0.1,
+				Font = Theme.Font,
+				Text = "  " .. cfg.Title .. "  ",
+				TextColor3 = Theme.Text,
+				TextSize = 12,
+				Visible = false,
+				Parent = Floating,
+			}, { Corner(6) })
+		end
 
 		MakeDraggable(Btn, Floating)
 
-		local dragMoved = false
-		Btn.MouseButton1Down:Connect(function() dragMoved = false end)
+		local moved = false
+		Btn.MouseButton1Down:Connect(function() moved = false end)
 		Btn.InputChanged:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-				dragMoved = true
+				moved = true
 			end
 		end)
 
-		Btn.MouseButton1Click:Connect(function()
-			-- toggle window
-			Floating.Visible = false
+		local function OpenWindow()
+			local tw = Tween(Floating, QUICK, { Size = UDim2.fromOffset(0, 0) })
+			tw.Completed:Connect(function()
+				Floating.Visible = false
+			end)
 			Window._SetVisible(true)
-		end)
+		end
 
-		Btn.MouseEnter:Connect(function() Tween(Floating, QUICK, {BackgroundTransparency = 0.05}) end)
-		Btn.MouseLeave:Connect(function() Tween(Floating, QUICK, {BackgroundTransparency = Theme.BackgroundTransparency}) end)
-
-		-- hook: whenever window is minimized (via this button concept) show floating icon
-		Window._Floating = Floating
-
-		-- Provide a manual minimize hook -- pressing a small chevron in top bar could call this too.
-		-- We add a minimize chevron into TopBar next to close button:
-		local MinBtn = Create("ImageButton", {
-			Name = "MinimizeChevron",
-			Size = UDim2.fromOffset(28, 28),
-			Position = UDim2.new(1, -70, 0, 11),
-			BackgroundColor3 = Theme.Element,
-			BackgroundTransparency = 0.2,
-			AutoButtonColor = false,
-			Parent = TopBar,
-		}, { Corner(8) })
-		local MinIcon = Create("ImageLabel", {
-			Size = UDim2.fromOffset(16,16),
-			Position = UDim2.new(0.5,-8,0.5,-8),
-			BackgroundTransparency = 1,
-			ImageColor3 = Theme.Text,
-			Parent = MinBtn,
-		})
-		ResolveImage(MinIcon, "minus")
-		MinBtn.MouseEnter:Connect(function() Tween(MinBtn, QUICK, {BackgroundColor3 = Theme.ElementHover}) end)
-		MinBtn.MouseLeave:Connect(function() Tween(MinBtn, QUICK, {BackgroundColor3 = Theme.Element}) end)
-
-		MinBtn.MouseButton1Click:Connect(function()
+		local function CloseWindow()
 			Window._SetVisible(false)
 			Floating.Visible = true
-			Floating.Size = UDim2.fromOffset(0,0)
-			Tween(Floating, BOUNCE, { Size = UDim2.fromOffset(46,46) })
+			Floating.Size = UDim2.fromOffset(0, 0)
+			Tween(Floating, BOUNCE, { Size = UDim2.fromOffset(46, 46) })
+		end
+
+		Btn.MouseButton1Click:Connect(function()
+			if moved then return end -- don't toggle if it was a drag, not a click
+			if Window._visible then
+				CloseWindow()
+			else
+				OpenWindow()
+			end
 		end)
+
+		Btn.MouseEnter:Connect(function()
+			Tween(Floating, QUICK, { BackgroundTransparency = 0.05 })
+			if TitleTip then TitleTip.Visible = true end
+		end)
+		Btn.MouseLeave:Connect(function()
+			Tween(Floating, QUICK, { BackgroundTransparency = Theme.BackgroundTransparency })
+			if TitleTip then TitleTip.Visible = false end
+		end)
+
+		-- Wire the window's own close/minimize control (top bar "–") to
+		-- reuse this exact floating button instead of maintaining two
+		-- separate toggle paths.
+		Window._MinimizeFloating = Floating
+		Window._MinimizeShow = CloseWindow
+		Window._MinimizeHide = OpenWindow
 
 		return {
 			Instance = Floating,
