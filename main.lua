@@ -3884,6 +3884,7 @@ function DarkyUI:CreateWindow(config)
                             CanvasSize = UDim2.new(),
                             AutomaticCanvasSize = Enum.AutomaticSize.Y,
                             ScrollingDirection = Enum.ScrollingDirection.Y,
+                            ScrollingEnabled = false,
                             ZIndex = 1003,
                         }
                     )
@@ -4043,6 +4044,18 @@ function DarkyUI:CreateWindow(config)
                                     selectOption(value)
                                 end)
                             end
+                        end
+
+                        -- Only enable scrolling when the dropdown has 5+ values.
+                        -- With 1-4 values the scrollbar is completely hidden and
+                        -- scrolling is disabled.
+                        local shouldScroll = #values >= 5
+
+                        optionList.ScrollingEnabled = shouldScroll
+                        optionList.ScrollBarThickness = shouldScroll and 4 or 0
+
+                        if not shouldScroll then
+                            optionList.CanvasPosition = Vector2.zero
                         end
 
                         countLabel.Text =
