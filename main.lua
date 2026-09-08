@@ -358,6 +358,32 @@ local function Icon(parent, icon, size, position, zIndex)
 end
 
 --========================================================
+-- VISUAL DESIGN HELPERS
+--========================================================
+
+local function AddTopAccent(parent)
+    return New("Frame", {
+        Parent = parent,
+        Position = UDim2.new(0, 0, 1, -2),
+        Size = UDim2.new(1, 0, 0, 2),
+        BackgroundColor3 = COLORS.Border,
+        BorderSizePixel = 0,
+        ZIndex = 29,
+    })
+end
+
+local function AddSectionAccent(parent)
+    return New("Frame", {
+        Parent = parent,
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.fromOffset(2, 20),
+        BackgroundColor3 = COLORS.Border,
+        BorderSizePixel = 0,
+        ZIndex = 15,
+    })
+end
+
+--========================================================
 -- THEME
 --========================================================
 
@@ -2475,18 +2501,21 @@ function DarkyUI:CreateWindow(config)
                 9
             )
 
+            AddSectionAccent(sectionFrame)
+
             New(
                 "TextLabel",
                 {
                     Parent = sectionFrame,
-                    Size = UDim2.new(1, 0, 0, 20),
+                    Position = UDim2.fromOffset(6, 0),
+                    Size = UDim2.new(1, -6, 0, 20),
                     BackgroundTransparency = 1,
                     Text = Section.Title,
                     TextColor3 = COLORS.Text,
                     TextSize = 12,
                     Font = Enum.Font.GothamBold,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    ZIndex = 14,
+                    ZIndex = 16,
                 }
             )
 
@@ -2553,6 +2582,7 @@ function DarkyUI:CreateWindow(config)
                 local title =
                     buttonConfig.Title or "Button"
 
+                -- Optional description shown below the button title.
                 local desc =
                     buttonConfig.Desc or ""
 
@@ -3397,6 +3427,7 @@ function DarkyUI:CreateWindow(config)
                 local title =
                     dropdownConfig.Title or "Dropdown"
 
+                -- Optional description shown below the dropdown title.
                 local desc =
                     dropdownConfig.Desc or ""
 
