@@ -1994,6 +1994,8 @@ function DarkyUI:CreateWindow(config)
         }
     )
 
+    AddCorner(tabs, 10)
+
     Stroke(
         tabs,
         COLORS.Border,
@@ -2418,6 +2420,8 @@ function DarkyUI:CreateWindow(config)
             }
         )
 
+        AddCorner(tabButton, 8)
+
         Stroke(
             tabButton,
             COLORS.Border,
@@ -2436,6 +2440,8 @@ function DarkyUI:CreateWindow(config)
                 ZIndex = 16,
             }
         )
+
+        AddCorner(selectedBar, 6)
 
         local tabIconHolder = New(
             "Frame",
@@ -2943,6 +2949,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                AddCorner(switch, 8)
+
                 Stroke(
                     switch,
                     COLORS.Border,
@@ -2960,6 +2968,8 @@ function DarkyUI:CreateWindow(config)
                         ZIndex = 20,
                     }
                 )
+
+                AddCorner(knob, 6)
 
                 local function updateToggle(_, colors)
                     if not root.Parent then
@@ -3182,6 +3192,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                AddCorner(track, 5)
+
                 Stroke(
                     track,
                     COLORS.Border,
@@ -3199,6 +3211,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                AddCorner(fill, 5)
+
                 local knob = New(
                     "Frame",
                     {
@@ -3211,6 +3225,8 @@ function DarkyUI:CreateWindow(config)
                         ZIndex = 20,
                     }
                 )
+
+                AddCorner(knob, 5)
 
                 local drag = New(
                     "TextButton",
@@ -3639,6 +3655,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                AddCorner(display, 8)
+
                 Stroke(
                     display,
                     COLORS.Border,
@@ -3736,6 +3754,8 @@ function DarkyUI:CreateWindow(config)
                         }
                     )
 
+                    AddCorner(popup, 12)
+
                     Stroke(
                         popup,
                         COLORS.Border,
@@ -3756,6 +3776,8 @@ function DarkyUI:CreateWindow(config)
                             ZIndex = 1003,
                         }
                     )
+
+                    AddCorner(header, 10)
 
                     New(
                         "TextLabel",
@@ -3813,6 +3835,8 @@ function DarkyUI:CreateWindow(config)
                             ZIndex = 1003,
                         }
                     )
+
+                    AddCorner(searchFrame, 8)
 
                     Stroke(
                         searchFrame,
@@ -3954,6 +3978,8 @@ function DarkyUI:CreateWindow(config)
                                         ZIndex = 1005,
                                     }
                                 )
+
+                                AddCorner(option, 7)
 
                                 Stroke(
                                     option,
