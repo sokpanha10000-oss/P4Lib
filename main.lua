@@ -877,11 +877,22 @@ local function MakeKeySystem(config)
             Size = UDim2.new(1, 0, 0, 56),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
+            ClipsDescendants = true,
             ZIndex = 2002,
         }
     )
 
-    Stroke(header, COLORS.Border, 1)
+    AddCorner(header, 12)
+    New("Frame", {
+        Parent = header,
+        Position = UDim2.new(0, 0, 1, -12),
+        Size = UDim2.new(1, 0, 0, 12),
+        BackgroundColor3 = COLORS.Background2,
+        BorderSizePixel = 0,
+        ZIndex = 2002,
+    })
+
+    Stroke(header, CurrentTheme().Accent, 1)
 
     New(
         "TextLabel",
@@ -1695,13 +1706,27 @@ function DarkyUI:CreateWindow(config)
             Size = UDim2.new(1, 0, 0, 58),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
+            ClipsDescendants = true,
             ZIndex = 20,
         }
     )
 
+    -- Rounded top header. The bottom mask keeps the header flush
+    -- against the body while the top corners stay rounded.
+    AddCorner(top, 12)
+
+    New("Frame", {
+        Parent = top,
+        Position = UDim2.new(0, 0, 1, -12),
+        Size = UDim2.new(1, 0, 0, 12),
+        BackgroundColor3 = COLORS.Background2,
+        BorderSizePixel = 0,
+        ZIndex = 20,
+    })
+
     Stroke(
         top,
-        COLORS.Border,
+        Window.Border and CurrentTheme().Accent or COLORS.Border,
         1
     )
 
