@@ -20,6 +20,10 @@
 --   • Notification automatically uses Window.Image
 --   • KeySystem can be created BEFORE CreateWindow
 --   • Optional saved key
+--   • Corner = true/false
+--   • Border = true/false (theme-colored outer border)
+--   • Blur = true/false (local aura around UI)
+--   • Bottom-right window image icon
 --========================================================
 
 local DarkyUI = {}
@@ -38,8 +42,10 @@ local LocalPlayer = Players.LocalPlayer
 -- CONSTANTS
 --========================================================
 
-local WINDOW_WIDTH = 550
-local WINDOW_HEIGHT = 340
+local WINDOW_WIDTH = 500
+local WINDOW_HEIGHT = 320
+local TAB_HEIGHT = 246
+local CORNER_RADIUS = 10
 
 local MAIN_GUI_NAME = "DarkyUI_Main"
 local KEY_GUI_NAME = "DarkyUI_KeySystem"
@@ -168,6 +174,46 @@ local function Padding(parent, left, right, top, bottom)
         PaddingTop = UDim.new(0, top or 0),
         PaddingBottom = UDim.new(0, bottom or 0),
     })
+end
+
+local function Corner(parent, radius)
+    if not parent then
+        return nil
+    end
+
+    local existing = parent:FindFirstChildOfClass("UICorner")
+    if existing then
+        existing.CornerRadius = UDim.new(0, radius or CORNER_RADIUS)
+        return existing
+    end
+
+    return New("UICorner", {
+        Parent = parent,
+        CornerRadius = UDim.new(0, radius or CORNER_RADIUS),
+    })
+end
+
+local function ApplyOuterBorder(object, enabled, theme)
+    local stroke = object:FindFirstChild("DarkyUIOuterBorder")
+
+    if not enabled then
+        if stroke then
+            stroke:Destroy()
+        end
+        return
+    end
+
+    if not stroke then
+        stroke = New("UIStroke", {
+            Parent = object,
+            Name = "DarkyUIOuterBorder",
+            Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
+    end
+
+    stroke.Color = theme.Accent
+    stroke.Transparency = 0
 end
 
 local function AssetId(value)
@@ -745,6 +791,10 @@ local function MakeKeySystem(config)
     local thumbnail =
         config.Thumbnail or {}
 
+    local useCorner = config.Corner ~= false
+    local useBorder = config.Border ~= false
+    local useBlur = config.Blur == true
+
     local fileName =
         "DarkyUI_Key.txt"
 
@@ -783,6 +833,22 @@ local function MakeKeySystem(config)
         }
     )
 
+    local aura
+    if useBlur then
+        aura = New("Frame", {
+            Parent = overlay,
+            Name = "BlurAura",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(524, 304),
+            BackgroundColor3 = CurrentTheme().Accent,
+            BackgroundTransparency = 0.86,
+            BorderSizePixel = 0,
+            ZIndex = 1999,
+        })
+        Corner(aura, CORNER_RADIUS + 8)
+    end
+
     local main = New(
         "Frame",
         {
@@ -797,7 +863,11 @@ local function MakeKeySystem(config)
         }
     )
 
-    Stroke(main, COLORS.Border, 1)
+    if useCorner then
+        Corner(main, CORNER_RADIUS)
+    end
+
+    ApplyOuterBorder(main, useBorder, CurrentTheme())
 
     --====================================================
     -- HEADER
@@ -815,6 +885,10 @@ local function MakeKeySystem(config)
     )
 
     Stroke(header, COLORS.Border, 1)
+
+    if useCorner then
+        Corner(header, 8)
+    end
 
     New(
         "TextLabel",
@@ -866,6 +940,10 @@ local function MakeKeySystem(config)
     )
 
     Stroke(left, COLORS.Border, 1)
+
+    if useCorner then
+        Corner(left, 8)
+    end
 
     local thumbAsset =
         thumbnail.Image
@@ -943,6 +1021,10 @@ local function MakeKeySystem(config)
 
     Stroke(right, COLORS.Border, 1)
 
+    if useCorner then
+        Corner(right, 8)
+    end
+
     New(
         "TextLabel",
         {
@@ -988,6 +1070,10 @@ local function MakeKeySystem(config)
     )
 
     Stroke(inputFrame, COLORS.Border, 1)
+
+    if useCorner then
+        Corner(inputFrame, 8)
+    end
 
     local inputIcon = Icon(
         inputFrame,
@@ -1076,6 +1162,10 @@ local function MakeKeySystem(config)
             1
         )
 
+        if useCorner then
+            Corner(button, 8)
+        end
+
         local image = Icon(
             button,
             iconName,
@@ -1140,6 +1230,12 @@ local function MakeKeySystem(config)
     RegisterTheme(function(_, colors)
         if not main.Parent then
             return
+        end
+
+        ApplyOuterBorder(main, useBorder, colors)
+
+        if aura and aura.Parent then
+            aura.BackgroundColor3 = colors.Accent
         end
 
         submitButton.BackgroundColor3 = colors.Accent
@@ -1258,6 +1354,9 @@ local function MakeKeySystem(config)
 
                     DarkyUI._Window._KeyLocked = false
                     DarkyUI._Window.Main.Visible = true
+                    if DarkyUI._Window.Aura then
+                        DarkyUI._Window.Aura.Visible = true
+                    end
 
                     DarkyUI._Window.Main.Size =
                         UDim2.fromOffset(550, 0)
@@ -1464,6 +1563,9 @@ function DarkyUI:CreateWindow(config)
         config.SearchBar == true
     Window.UserConfig =
         config.User or {}
+    Window.Corner = config.Corner ~= false
+    Window.Border = config.Border ~= false
+    Window.Blur = config.Blur == true
 
     -- If a KeySystem was just created and has not passed yet,
     -- keep the hub hidden until the KeySystem succeeds.
@@ -1526,6 +1628,10 @@ function DarkyUI:CreateWindow(config)
         1
     )
 
+    if Window.Corner then
+        Corner(floating, CORNER_RADIUS)
+    end
+
     local floatingIcon = Icon(
         floating,
         Window.Image or "layout-dashboard",
@@ -1554,6 +1660,30 @@ function DarkyUI:CreateWindow(config)
     -- MAIN
     --====================================================
 
+    local aura
+
+    if Window.Blur then
+        aura = New(
+            "Frame",
+            {
+                Parent = gui,
+                Name = "BlurAura",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromOffset(
+                    WINDOW_WIDTH + 24,
+                    WINDOW_HEIGHT + 24
+                ),
+                BackgroundColor3 = CurrentTheme().Accent,
+                BackgroundTransparency = 0.86,
+                BorderSizePixel = 0,
+                Visible = not Window._KeyLocked,
+                ZIndex = 1,
+            }
+        )
+        Corner(aura, CORNER_RADIUS + 8)
+    end
+
     local main = New(
         "Frame",
         {
@@ -1575,11 +1705,17 @@ function DarkyUI:CreateWindow(config)
 
     Window.Main = main
 
-    Stroke(
+    if Window.Corner then
+        Corner(main, CORNER_RADIUS)
+    end
+
+    ApplyOuterBorder(
         main,
-        COLORS.Border,
-        1
+        Window.Border,
+        CurrentTheme()
     )
+
+    Window.Aura = aura
 
     --====================================================
     -- TOP BAR
@@ -1602,6 +1738,10 @@ function DarkyUI:CreateWindow(config)
         COLORS.Border,
         1
     )
+
+    if Window.Corner then
+        Corner(top, CORNER_RADIUS)
+    end
 
     --====================================================
     -- DRAG MAIN WINDOW
@@ -1627,6 +1767,10 @@ function DarkyUI:CreateWindow(config)
                 startPosition.Y.Scale,
                 startPosition.Y.Offset + delta.Y
             )
+
+            if aura then
+                aura.Position = main.Position
+            end
         end
 
         top.InputBegan:Connect(function(input)
@@ -1850,6 +1994,27 @@ function DarkyUI:CreateWindow(config)
     end
 
     --====================================================
+    -- BOTTOM-RIGHT WINDOW IMAGE
+    --====================================================
+
+    local bottomImage
+
+    if Window.Image ~= nil then
+        bottomImage = Icon(
+            main,
+            Window.Image,
+            22,
+            UDim2.new(1, -31, 1, -31),
+            40
+        )
+
+        if bottomImage then
+            bottomImage.AnchorPoint = Vector2.new(0.5, 0.5)
+            bottomImage.ImageTransparency = 0.08
+        end
+    end
+
+    --====================================================
     -- BODY
     --====================================================
 
@@ -1873,7 +2038,7 @@ function DarkyUI:CreateWindow(config)
         {
             Parent = body,
             Position = UDim2.fromOffset(8, 8),
-            Size = UDim2.fromOffset(145, 266),
+            Size = UDim2.fromOffset(145, TAB_HEIGHT),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
             ScrollBarThickness = 3,
@@ -2023,6 +2188,22 @@ function DarkyUI:CreateWindow(config)
         }
     )
 
+    RegisterTheme(function(_, colors)
+        if not main.Parent then
+            return
+        end
+
+        ApplyOuterBorder(
+            main,
+            Window.Border,
+            colors
+        )
+
+        if aura and aura.Parent then
+            aura.BackgroundColor3 = colors.Accent
+        end
+    end)
+
     --====================================================
     -- SEARCH LOGIC
     --====================================================
@@ -2088,6 +2269,9 @@ function DarkyUI:CreateWindow(config)
             end
 
             main.Visible = false
+            if aura then
+                aura.Visible = false
+            end
             floating.Visible = true
             floating.Size = UDim2.fromOffset(0, 0)
 
@@ -2109,6 +2293,9 @@ function DarkyUI:CreateWindow(config)
 
         self.Minimized = false
         floating.Visible = false
+        if aura then
+            aura.Visible = true
+        end
         main.Visible = true
         main.Size = UDim2.fromOffset(WINDOW_WIDTH, 0)
 
@@ -2136,6 +2323,56 @@ function DarkyUI:CreateWindow(config)
         end
     end
 
+    function Window:SetCorner(value)
+        Window.Corner = value == true
+
+        if Window.Corner then
+            Corner(main, CORNER_RADIUS)
+        else
+            local corner = main:FindFirstChildOfClass("UICorner")
+            if corner then
+                corner:Destroy()
+            end
+        end
+    end
+
+    function Window:SetBorder(value)
+        Window.Border = value == true
+        ApplyOuterBorder(
+            main,
+            Window.Border,
+            CurrentTheme()
+        )
+    end
+
+    function Window:SetBlur(value)
+        Window.Blur = value == true
+
+        if Window.Blur then
+            if not aura then
+                aura = New(
+                    "Frame",
+                    {
+                        Parent = gui,
+                        Name = "BlurAura",
+                        AnchorPoint = Vector2.new(0.5, 0.5),
+                        Position = main.Position,
+                        Size = UDim2.fromOffset(WINDOW_WIDTH + 24, WINDOW_HEIGHT + 24),
+                        BackgroundColor3 = CurrentTheme().Accent,
+                        BackgroundTransparency = 0.86,
+                        BorderSizePixel = 0,
+                        ZIndex = 1,
+                    }
+                )
+                Corner(aura, CORNER_RADIUS + 8)
+            end
+            Window.Aura = aura
+            aura.Visible = not Window.Minimized and not Window._KeyLocked
+        elseif aura then
+            aura.Visible = false
+        end
+    end
+
     function Window:SetTitle(value)
         self.Title = tostring(value)
         titleLabel.Text = self.Title
@@ -2159,6 +2396,10 @@ function DarkyUI:CreateWindow(config)
 
             if floatingIcon then
                 floatingIcon.Image = asset
+            end
+
+            if bottomImage then
+                bottomImage.Image = asset
             end
         end
     end
