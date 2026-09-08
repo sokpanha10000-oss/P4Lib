@@ -1,37 +1,44 @@
---[[
-    DarkyUI
-    Clean Single-File Roblox UI Library
-
-    Features:
-    • 550x340 default window
-    • PC + mobile dragging
-    • Draggable floating minimize button
-    • Minimize / restore
-    • Close / destroy
-    • Square corners
-    • Search bar
-    • Profile + username
-    • Lucide icons + asset IDs
-    • Tabs
-    • Auto-sized independent sections
-    • Multiple sections can fit naturally
-    • Automatic content scrolling
-    • Dropdown centered popup
-    • Dropdown search
-    • Dropdown scrolling
-    • Dropdown:Refresh()
-    • Button
-    • Toggle
-    • Slider
-    • Input
-    • Smooth animations
-]]
+--//========================================================
+--// DarkyUI
+--// Clean Single-File UI Library
+--//========================================================
+--//
+--// Features:
+--// • 550x340 main window
+--// • PC + Mobile dragging
+--// • Draggable floating minimize button
+--// • Minimize / Restore
+--// • Close / Destroy
+--// • Square corners
+--// • Search bar
+--// • Profile + Username
+--// • Lucide icons
+--// • Asset ID icons
+--// • Tabs
+--// • Auto-sized sections
+--// • Multiple sections
+--// • Automatic scrolling
+--// • Button
+--// • Toggle
+--// • Slider
+--// • Input
+--// • Dropdown
+--// • Dropdown search
+--// • Dropdown scrolling
+--// • Dropdown Refresh
+--// • Key System
+--// • Key validation
+--// • SaveKey
+--// • Get Key clipboard
+--// • Thumbnail
+--//
+--//========================================================
 
 local DarkyUI = {}
 
---==================================================
+--========================================================
 -- SERVICES
---==================================================
+--========================================================
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -40,11 +47,14 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local CoreGui = game:GetService("CoreGui")
 
---==================================================
--- CONFIG
---==================================================
+--========================================================
+-- CONSTANTS
+--========================================================
 
 local UI_NAME = "DarkyUI"
+
+local DEFAULT_WINDOW_SIZE =
+    UDim2.fromOffset(550, 340)
 
 local COLORS = {
     Background = Color3.fromRGB(18, 18, 21),
@@ -81,9 +91,9 @@ local TWEEN_MED = TweenInfo.new(
     Enum.EasingDirection.Out
 )
 
---==================================================
--- HELPERS
---==================================================
+--========================================================
+-- BASIC HELPERS
+--========================================================
 
 local function New(className, properties)
     local object = Instance.new(className)
@@ -102,7 +112,12 @@ local function Tween(object, info, properties)
         return
     end
 
-    local tween = TweenService:Create(object, info, properties)
+    local tween = TweenService:Create(
+        object,
+        info,
+        properties
+    )
+
     tween:Play()
 
     return tween
@@ -117,13 +132,27 @@ local function AddStroke(parent, color, thickness)
     })
 end
 
-local function AddPadding(parent, left, right, top, bottom)
+local function AddPadding(
+    parent,
+    left,
+    right,
+    top,
+    bottom
+)
     return New("UIPadding", {
         Parent = parent,
-        PaddingLeft = UDim.new(0, left or 0),
-        PaddingRight = UDim.new(0, right or 0),
-        PaddingTop = UDim.new(0, top or 0),
-        PaddingBottom = UDim.new(0, bottom or 0),
+
+        PaddingLeft =
+            UDim.new(0, left or 0),
+
+        PaddingRight =
+            UDim.new(0, right or 0),
+
+        PaddingTop =
+            UDim.new(0, top or 0),
+
+        PaddingBottom =
+            UDim.new(0, bottom or 0),
     })
 end
 
@@ -152,12 +181,14 @@ local function NormalizeAssetId(value)
     return value
 end
 
---==================================================
--- HTTP / LOADSTRING
---==================================================
+--========================================================
+-- HTTP
+--========================================================
 
 local function GetHttp(url)
+
     local methods = {
+
         function()
             return game:HttpGet(url)
         end,
@@ -178,9 +209,14 @@ local function GetHttp(url)
     }
 
     for _, method in ipairs(methods) do
-        local success, result = pcall(method)
 
-        if success and result and result ~= "" then
+        local success, result =
+            pcall(method)
+
+        if success
+            and result
+            and result ~= "" then
+
             return result
         end
     end
@@ -188,7 +224,12 @@ local function GetHttp(url)
     return nil
 end
 
+--========================================================
+-- LOADSTRING
+--========================================================
+
 local function GetLoadstring()
+
     if typeof(loadstring) == "function" then
         return loadstring
     end
@@ -200,53 +241,71 @@ local function GetLoadstring()
     return nil
 end
 
---==================================================
--- LUCIDE
---==================================================
+--========================================================
+-- LUCIDE ICONS
+--========================================================
 
 local LUCIDE_URL =
     "https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/lucide/dist/Icons.lua"
 
 local function LoadLucide()
+
+    -- Supports the user's loader environment.
     local env = {}
 
     pcall(function()
+
         if typeof(getgenv) == "function" then
             env = getgenv()
         end
+
     end)
 
-    -- Support the exact loader style from the request.
-    if env.IsUI and env.Loadstring and env.Get then
-        local success, result = pcall(function()
-            return env.Loadstring(
-                env.Get(LUCIDE_URL)
-            )()
-        end)
+    if env.IsUI
+        and env.Loadstring
+        and env.Get then
 
-        if success and type(result) == "table" then
+        local success, result =
+            pcall(function()
+
+                return env.Loadstring(
+                    env.Get(LUCIDE_URL)
+                )()
+
+            end)
+
+        if success
+            and type(result) == "table" then
+
             return result
         end
     end
 
-    -- Normal fallback.
-    local source = GetHttp(LUCIDE_URL)
+    -- Fallback loader.
+    local source =
+        GetHttp(LUCIDE_URL)
 
     if not source then
         return {}
     end
 
-    local loader = GetLoadstring()
+    local loader =
+        GetLoadstring()
 
     if not loader then
         return {}
     end
 
-    local success, result = pcall(function()
-        return loader(source)()
-    end)
+    local success, result =
+        pcall(function()
 
-    if success and type(result) == "table" then
+            return loader(source)()
+
+        end)
+
+    if success
+        and type(result) == "table" then
+
         return result
     end
 
@@ -259,23 +318,32 @@ local Icons = {
 
 DarkyUI.Icons = Icons
 
+--========================================================
+-- ICON RESOLVER
+--========================================================
+
 local function ResolveIcon(icon)
+
     if icon == nil then
         return nil
     end
 
+    -- Number = asset ID
     if typeof(icon) == "number" then
-        return "rbxassetid://" .. tostring(icon)
+        return "rbxassetid://" ..
+            tostring(icon)
     end
 
     if typeof(icon) ~= "string" then
         return nil
     end
 
+    -- Numeric asset ID
     if IsAssetId(icon) then
         return NormalizeAssetId(icon)
     end
 
+    -- URL
     if icon:match("^https?://") then
         return icon
     end
@@ -284,95 +352,146 @@ local function ResolveIcon(icon)
         return icon
     end
 
-    local direct = Icons.lucide[icon]
+    -- Exact Lucide name
+    if Icons.lucide[icon] then
 
-    if direct then
-        return NormalizeAssetId(tostring(direct))
+        return NormalizeAssetId(
+            tostring(
+                Icons.lucide[icon]
+            )
+        )
     end
 
-    local lower = icon:lower()
+    -- Case-insensitive search
+    local lower =
+        icon:lower()
 
-    for name, value in pairs(Icons.lucide) do
-        if tostring(name):lower() == lower then
-            return NormalizeAssetId(tostring(value))
+    for name, value in pairs(
+        Icons.lucide
+    ) do
+
+        if tostring(name):lower()
+            == lower then
+
+            return NormalizeAssetId(
+                tostring(value)
+            )
         end
     end
 
     return nil
 end
 
-local function CreateIcon(parent, icon, size, position, zIndex)
-    local asset = ResolveIcon(icon)
+local function CreateIcon(
+    parent,
+    icon,
+    size,
+    position,
+    zIndex
+)
+
+    local asset =
+        ResolveIcon(icon)
 
     if not asset then
         return nil
     end
 
-    return New("ImageLabel", {
-        Parent = parent,
+    return New(
+        "ImageLabel",
+        {
+            Parent = parent,
 
-        BackgroundTransparency = 1,
+            BackgroundTransparency = 1,
 
-        Position = position,
+            Position =
+                position,
 
-        Size = UDim2.fromOffset(size, size),
+            Size =
+                UDim2.fromOffset(
+                    size,
+                    size
+                ),
 
-        Image = asset,
+            Image = asset,
 
-        ImageColor3 = COLORS.Text,
+            ImageColor3 =
+                COLORS.Text,
 
-        ScaleType = Enum.ScaleType.Fit,
+            ScaleType =
+                Enum.ScaleType.Fit,
 
-        ZIndex = zIndex or 10,
-    })
+            ZIndex =
+                zIndex or 10,
+        }
+    )
 end
 
---==================================================
--- PROFILE
---==================================================
+--========================================================
+-- PLAYER THUMBNAIL
+--========================================================
 
 local function GetProfileImage()
+
     local image = ""
 
     pcall(function()
-        local content = Players:GetUserThumbnailAsync(
-            LocalPlayer.UserId,
-            Enum.ThumbnailType.HeadShot,
-            Enum.ThumbnailSize.Size100x100
-        )
+
+        local content =
+            Players:GetUserThumbnailAsync(
+                LocalPlayer.UserId,
+                Enum.ThumbnailType.HeadShot,
+                Enum.ThumbnailSize.Size100x100
+            )
 
         image = content or ""
+
     end)
 
     return image
 end
 
---==================================================
--- DESTROY OLD UI
---==================================================
+--========================================================
+-- REMOVE OLD GUI
+--========================================================
 
 pcall(function()
-    local old = CoreGui:FindFirstChild(UI_NAME)
+
+    local old =
+        CoreGui:FindFirstChild(
+            UI_NAME
+        )
 
     if old then
         old:Destroy()
     end
+
 end)
 
---==================================================
--- CREATE WINDOW
---==================================================
+--========================================================
+-- WINDOW
+--========================================================
 
 function DarkyUI:CreateWindow(config)
+
     config = config or {}
 
     local Window = {}
 
-    Window.Title = config.Title or "DarkyUI"
-    Window.Subtitle = config.Subtitle or ""
-    Window.Image = config.Image
-    Window.SearchEnabled = config.SearchBar == true
-    Window.UserConfig = config.User or {}
+    Window.Title =
+        config.Title or "DarkyUI"
+
+    Window.Subtitle =
+        config.Subtitle or ""
+
+    Window.Image =
+        config.Image
+
+    Window.SearchEnabled =
+        config.SearchBar == true
+
+    Window.UserConfig =
+        config.User or {}
 
     Window.Tabs = {}
     Window.Elements = {}
@@ -382,162 +501,260 @@ function DarkyUI:CreateWindow(config)
     Window.Minimized = false
     Window.Destroyed = false
 
-    --==================================================
+    --====================================================
     -- SCREEN GUI
-    --==================================================
+    --====================================================
 
-    local ScreenGui = New("ScreenGui", {
-        Name = UI_NAME,
+    local ScreenGui =
+        New(
+            "ScreenGui",
+            {
+                Name = UI_NAME,
 
-        Parent = CoreGui,
+                Parent = CoreGui,
 
-        IgnoreGuiInset = true,
+                IgnoreGuiInset = true,
 
-        ResetOnSpawn = false,
+                ResetOnSpawn = false,
 
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+                ZIndexBehavior =
+                    Enum.ZIndexBehavior.Sibling,
 
-        DisplayOrder = 999999,
-    })
+                DisplayOrder = 999999,
+            }
+        )
 
-    Window.Gui = ScreenGui
+    Window.Gui =
+        ScreenGui
 
-    --==================================================
+    --====================================================
     -- FLOATING BUTTON
-    --==================================================
+    --====================================================
 
-    local FloatingButton = New("TextButton", {
-        Parent = ScreenGui,
+    local FloatingButton =
+        New(
+            "TextButton",
+            {
+                Parent =
+                    ScreenGui,
 
-        Name = "FloatingButton",
+                Name =
+                    "FloatingButton",
 
-        AnchorPoint = Vector2.new(0, 0.5),
+                AnchorPoint =
+                    Vector2.new(
+                        0,
+                        0.5
+                    ),
 
-        Position = UDim2.new(
-            0,
-            18,
-            0.5,
-            0
-        ),
+                Position =
+                    UDim2.new(
+                        0,
+                        18,
+                        0.5,
+                        0
+                    ),
 
-        Size = UDim2.fromOffset(52, 52),
+                Size =
+                    UDim2.fromOffset(
+                        52,
+                        52
+                    ),
 
-        BackgroundColor3 = COLORS.Panel,
+                BackgroundColor3 =
+                    COLORS.Panel,
 
-        BorderSizePixel = 0,
+                BorderSizePixel = 0,
 
-        AutoButtonColor = false,
+                AutoButtonColor = false,
 
-        Active = true,
+                Active = true,
 
-        Text = "",
+                Text = "",
 
-        Visible = false,
+                Visible = false,
 
-        ZIndex = 500,
-    })
+                ZIndex = 500,
+            }
+        )
 
-    AddStroke(FloatingButton, COLORS.Border, 1)
+    AddStroke(
+        FloatingButton,
+        COLORS.Border,
+        1
+    )
 
     local FloatingIcon =
         CreateIcon(
             FloatingButton,
-            Window.Image or "layout-dashboard",
+            Window.Image
+                or "layout-dashboard",
             24,
-            UDim2.new(0.5, -12, 0.5, -12),
+            UDim2.new(
+                0.5,
+                -12,
+                0.5,
+                -12
+            ),
             501
         )
 
     if not FloatingIcon then
-        New("TextLabel", {
-            Parent = FloatingButton,
 
-            BackgroundTransparency = 1,
+        New(
+            "TextLabel",
+            {
+                Parent =
+                    FloatingButton,
 
-            Size = UDim2.fromScale(1, 1),
+                BackgroundTransparency = 1,
 
-            Text = string.sub(
-                Window.Title,
-                1,
-                1
-            ):upper(),
+                Size =
+                    UDim2.fromScale(
+                        1,
+                        1
+                    ),
 
-            TextColor3 = COLORS.Text,
+                Text =
+                    string.sub(
+                        Window.Title,
+                        1,
+                        1
+                    ):upper(),
 
-            TextSize = 20,
+                TextColor3 =
+                    COLORS.Text,
 
-            Font = Enum.Font.GothamBold,
+                TextSize = 20,
 
-            ZIndex = 501,
-        })
+                Font =
+                    Enum.Font.GothamBold,
+
+                ZIndex = 501,
+            }
+        )
     end
 
-    --==================================================
-    -- MAIN WINDOW
-    --==================================================
+    --====================================================
+    -- MAIN
+    --====================================================
 
-    local Main = New("Frame", {
-        Parent = ScreenGui,
+    local Main =
+        New(
+            "Frame",
+            {
+                Parent =
+                    ScreenGui,
 
-        Name = "Main",
+                Name = "Main",
 
-        AnchorPoint = Vector2.new(0.5, 0.5),
+                AnchorPoint =
+                    Vector2.new(
+                        0.5,
+                        0.5
+                    ),
 
-        Position = UDim2.fromScale(
-            0.5,
-            0.5
-        ),
+                Position =
+                    UDim2.fromScale(
+                        0.5,
+                        0.5
+                    ),
 
-        Size = UDim2.fromOffset(
-            550,
-            340
-        ),
+                Size =
+                    DEFAULT_WINDOW_SIZE,
 
-        BackgroundColor3 = COLORS.Background,
+                BackgroundColor3 =
+                    COLORS.Background,
 
-        BorderSizePixel = 0,
+                BorderSizePixel = 0,
 
-        ClipsDescendants = true,
+                ClipsDescendants = true,
 
-        ZIndex = 10,
-    })
+                ZIndex = 10,
+            }
+        )
 
-    Window.Main = Main
+    Window.Main =
+        Main
 
-    AddStroke(Main, COLORS.Border, 1)
+    AddStroke(
+        Main,
+        COLORS.Border,
+        1
+    )
 
-    --==================================================
-    -- DRAG MAIN WINDOW
-    --==================================================
+    --====================================================
+    -- TOP BAR
+    --====================================================
+
+    local TopBar =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Main,
+
+                Name = "TopBar",
+
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        58
+                    ),
+
+                BackgroundColor3 =
+                    COLORS.Background2,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 20,
+            }
+        )
+
+    AddStroke(
+        TopBar,
+        COLORS.Border,
+        1
+    )
+
+    --====================================================
+    -- MAIN DRAG
+    --====================================================
 
     do
+
         local dragging = false
         local dragInput
         local dragStart
         local startPosition
 
-        local function update(input)
+        local function UpdateDrag(input)
+
             if not dragging then
                 return
             end
 
             local delta =
-                input.Position - dragStart
+                input.Position
+                - dragStart
 
-            Main.Position = UDim2.new(
-                startPosition.X.Scale,
-                startPosition.X.Offset + delta.X,
+            Main.Position =
+                UDim2.new(
+                    startPosition.X.Scale,
+                    startPosition.X.Offset
+                        + delta.X,
 
-                startPosition.Y.Scale,
-                startPosition.Y.Offset + delta.Y
-            )
+                    startPosition.Y.Scale,
+                    startPosition.Y.Offset
+                        + delta.Y
+                )
         end
 
-        TopBar = nil
+        TopBar.InputBegan:Connect(
+            function(input)
 
-        -- Top bar is created below.
-        Window._UpdateMainDrag = function(topbar)
-            topbar.InputBegan:Connect(function(input)
                 if input.UserInputType ==
                     Enum.UserInputType.MouseButton1
                     or input.UserInputType ==
@@ -553,17 +770,25 @@ function DarkyUI:CreateWindow(config)
 
                     dragInput = input
 
-                    input.Changed:Connect(function()
-                        if input.UserInputState ==
-                            Enum.UserInputState.End then
+                    input.Changed:Connect(
+                        function()
 
-                            dragging = false
+                            if input.UserInputState ==
+                                Enum.UserInputState.End then
+
+                                dragging = false
+                            end
+
                         end
-                    end)
+                    )
                 end
-            end)
 
-            topbar.InputChanged:Connect(function(input)
+            end
+        )
+
+        TopBar.InputChanged:Connect(
+            function(input)
+
                 if input.UserInputType ==
                     Enum.UserInputType.MouseMovement
                     or input.UserInputType ==
@@ -571,193 +796,230 @@ function DarkyUI:CreateWindow(config)
 
                     dragInput = input
                 end
-            end)
-        end
 
-        UserInputService.InputChanged:Connect(function(input)
-            if input == dragInput then
-                update(input)
             end
-        end)
+        )
+
+        UserInputService.InputChanged:Connect(
+            function(input)
+
+                if input == dragInput then
+                    UpdateDrag(input)
+                end
+
+            end
+        )
     end
 
-    --==================================================
-    -- TOP BAR
-    --==================================================
-
-    local TopBar = New("Frame", {
-        Parent = Main,
-
-        Name = "TopBar",
-
-        Size = UDim2.new(1, 0, 0, 58),
-
-        BackgroundColor3 = COLORS.Background2,
-
-        BorderSizePixel = 0,
-
-        ZIndex = 20,
-    })
-
-    AddStroke(TopBar, COLORS.Border, 1)
-
-    Window._UpdateMainDrag(TopBar)
-
-    --==================================================
+    --====================================================
     -- WINDOW ICON
-    --==================================================
+    --====================================================
 
-    local WindowIconHolder = New("Frame", {
-        Parent = TopBar,
+    local WindowIconHolder =
+        New(
+            "Frame",
+            {
+                Parent =
+                    TopBar,
 
-        BackgroundTransparency = 1,
+                BackgroundTransparency = 1,
 
-        Position = UDim2.fromOffset(
-            11,
-            9
-        ),
+                Position =
+                    UDim2.fromOffset(
+                        11,
+                        9
+                    ),
 
-        Size = UDim2.fromOffset(
-            40,
-            40
-        ),
+                Size =
+                    UDim2.fromOffset(
+                        40,
+                        40
+                    ),
 
-        ZIndex = 21,
-    })
+                ZIndex = 21,
+            }
+        )
 
     local WindowIcon =
         CreateIcon(
             WindowIconHolder,
-            Window.Image or "layout-dashboard",
+            Window.Image
+                or "layout-dashboard",
             24,
-            UDim2.new(0.5, -12, 0.5, -12),
+            UDim2.new(
+                0.5,
+                -12,
+                0.5,
+                -12
+            ),
             22
         )
 
     if not WindowIcon then
-        New("TextLabel", {
-            Parent = WindowIconHolder,
 
-            BackgroundTransparency = 1,
+        New(
+            "TextLabel",
+            {
+                Parent =
+                    WindowIconHolder,
 
-            Size = UDim2.fromScale(1, 1),
+                BackgroundTransparency = 1,
 
-            Text = string.sub(
-                Window.Title,
-                1,
-                1
-            ):upper(),
+                Size =
+                    UDim2.fromScale(
+                        1,
+                        1
+                    ),
 
-            TextColor3 = COLORS.Text,
+                Text =
+                    string.sub(
+                        Window.Title,
+                        1,
+                        1
+                    ):upper(),
 
-            TextSize = 19,
+                TextColor3 =
+                    COLORS.Text,
 
-            Font = Enum.Font.GothamBold,
+                TextSize = 19,
 
-            ZIndex = 22,
-        })
+                Font =
+                    Enum.Font.GothamBold,
+
+                ZIndex = 22,
+            }
+        )
     end
 
-    --==================================================
+    --====================================================
     -- TITLE
-    --==================================================
+    --====================================================
 
-    local TitleLabel = New("TextLabel", {
-        Parent = TopBar,
+    local TitleLabel =
+        New(
+            "TextLabel",
+            {
+                Parent =
+                    TopBar,
 
-        BackgroundTransparency = 1,
+                BackgroundTransparency = 1,
 
-        Position = UDim2.fromOffset(
-            58,
-            7
-        ),
+                Position =
+                    UDim2.fromOffset(
+                        58,
+                        7
+                    ),
 
-        Size = UDim2.new(
-            1,
-            -225,
-            0,
-            23
-        ),
+                Size =
+                    UDim2.new(
+                        1,
+                        -225,
+                        0,
+                        23
+                    ),
 
-        Text = Window.Title,
+                Text =
+                    Window.Title,
 
-        TextColor3 = COLORS.Text,
+                TextColor3 =
+                    COLORS.Text,
 
-        TextSize = 15,
+                TextSize = 15,
 
-        Font = Enum.Font.GothamBold,
+                Font =
+                    Enum.Font.GothamBold,
 
-        TextXAlignment =
-            Enum.TextXAlignment.Left,
+                TextXAlignment =
+                    Enum.TextXAlignment.Left,
 
-        TextTruncate =
-            Enum.TextTruncate.AtEnd,
+                TextTruncate =
+                    Enum.TextTruncate.AtEnd,
 
-        ZIndex = 22,
-    })
+                ZIndex = 22,
+            }
+        )
 
-    local SubtitleLabel = New("TextLabel", {
-        Parent = TopBar,
+    local SubtitleLabel =
+        New(
+            "TextLabel",
+            {
+                Parent =
+                    TopBar,
 
-        BackgroundTransparency = 1,
+                BackgroundTransparency = 1,
 
-        Position = UDim2.fromOffset(
-            58,
-            30
-        ),
+                Position =
+                    UDim2.fromOffset(
+                        58,
+                        30
+                    ),
 
-        Size = UDim2.new(
-            1,
-            -225,
-            0,
-            17
-        ),
+                Size =
+                    UDim2.new(
+                        1,
+                        -225,
+                        0,
+                        17
+                    ),
 
-        Text = Window.Subtitle,
+                Text =
+                    Window.Subtitle,
 
-        TextColor3 = COLORS.SubText,
+                TextColor3 =
+                    COLORS.SubText,
 
-        TextSize = 10,
+                TextSize = 10,
 
-        Font = Enum.Font.Gotham,
+                Font =
+                    Enum.Font.Gotham,
 
-        TextXAlignment =
-            Enum.TextXAlignment.Left,
+                TextXAlignment =
+                    Enum.TextXAlignment.Left,
 
-        TextTruncate =
-            Enum.TextTruncate.AtEnd,
+                TextTruncate =
+                    Enum.TextTruncate.AtEnd,
 
-        ZIndex = 22,
-    })
+                ZIndex = 22,
+            }
+        )
 
-    --==================================================
+    --====================================================
     -- SEARCH BAR
-    --==================================================
+    --====================================================
 
     local SearchBox
 
     if Window.SearchEnabled then
-        local SearchFrame = New("Frame", {
-            Parent = TopBar,
 
-            Position = UDim2.new(
-                1,
-                -205,
-                0,
-                11
-            ),
+        local SearchFrame =
+            New(
+                "Frame",
+                {
+                    Parent =
+                        TopBar,
 
-            Size = UDim2.fromOffset(
-                125,
-                36
-            ),
+                    Position =
+                        UDim2.new(
+                            1,
+                            -205,
+                            0,
+                            11
+                        ),
 
-            BackgroundColor3 = COLORS.Panel,
+                    Size =
+                        UDim2.fromOffset(
+                            125,
+                            36
+                        ),
 
-            BorderSizePixel = 0,
+                    BackgroundColor3 =
+                        COLORS.Panel,
 
-            ZIndex = 25,
-        })
+                    BorderSizePixel = 0,
+
+                    ZIndex = 25,
+                }
+            )
 
         AddStroke(
             SearchFrame,
@@ -776,76 +1038,94 @@ function DarkyUI:CreateWindow(config)
             26
         )
 
-        SearchBox = New("TextBox", {
-            Parent = SearchFrame,
+        SearchBox =
+            New(
+                "TextBox",
+                {
+                    Parent =
+                        SearchFrame,
 
-            BackgroundTransparency = 1,
+                    BackgroundTransparency = 1,
 
-            Position = UDim2.fromOffset(
-                30,
-                0
-            ),
+                    Position =
+                        UDim2.fromOffset(
+                            30,
+                            0
+                        ),
 
-            Size = UDim2.new(
-                1,
-                -35,
-                1,
-                0
-            ),
+                    Size =
+                        UDim2.new(
+                            1,
+                            -35,
+                            1,
+                            0
+                        ),
 
-            PlaceholderText = "Search",
+                    PlaceholderText =
+                        "Search",
 
-            PlaceholderColor3 =
-                COLORS.Muted,
+                    PlaceholderColor3 =
+                        COLORS.Muted,
 
-            Text = "",
+                    Text = "",
 
-            TextColor3 = COLORS.Text,
+                    TextColor3 =
+                        COLORS.Text,
 
-            TextSize = 10,
+                    TextSize = 10,
 
-            Font = Enum.Font.Gotham,
+                    Font =
+                        Enum.Font.Gotham,
 
-            ClearTextOnFocus = false,
+                    ClearTextOnFocus = false,
 
-            TextXAlignment =
-                Enum.TextXAlignment.Left,
+                    TextXAlignment =
+                        Enum.TextXAlignment.Left,
 
-            ZIndex = 26,
-        })
+                    ZIndex = 26,
+                }
+            )
 
-        Window.SearchBox = SearchBox
+        Window.SearchBox =
+            SearchBox
     end
 
-    --==================================================
-    -- MINIMIZE BUTTON
-    --==================================================
+    --====================================================
+    -- MINIMIZE
+    --====================================================
 
-    local MinimizeButton = New("TextButton", {
-        Parent = TopBar,
+    local MinimizeButton =
+        New(
+            "TextButton",
+            {
+                Parent =
+                    TopBar,
 
-        Position = UDim2.new(
-            1,
-            -75,
-            0,
-            9
-        ),
+                Position =
+                    UDim2.new(
+                        1,
+                        -75,
+                        0,
+                        9
+                    ),
 
-        Size = UDim2.fromOffset(
-            30,
-            38
-        ),
+                Size =
+                    UDim2.fromOffset(
+                        30,
+                        38
+                    ),
 
-        BackgroundTransparency = 1,
+                BackgroundTransparency = 1,
 
-        BorderSizePixel = 0,
+                BorderSizePixel = 0,
 
-        AutoButtonColor = false,
+                AutoButtonColor = false,
 
-        Text = "",
+                Text = "",
 
-        ZIndex = 30,
-    })
+                ZIndex = 30,
+            }
+        )
 
     CreateIcon(
         MinimizeButton,
@@ -860,35 +1140,42 @@ function DarkyUI:CreateWindow(config)
         31
     )
 
-    --==================================================
-    -- CLOSE BUTTON
-    --==================================================
+    --====================================================
+    -- CLOSE
+    --====================================================
 
-    local CloseButton = New("TextButton", {
-        Parent = TopBar,
+    local CloseButton =
+        New(
+            "TextButton",
+            {
+                Parent =
+                    TopBar,
 
-        Position = UDim2.new(
-            1,
-            -40,
-            0,
-            9
-        ),
+                Position =
+                    UDim2.new(
+                        1,
+                        -40,
+                        0,
+                        9
+                    ),
 
-        Size = UDim2.fromOffset(
-            30,
-            38
-        ),
+                Size =
+                    UDim2.fromOffset(
+                        30,
+                        38
+                    ),
 
-        BackgroundTransparency = 1,
+                BackgroundTransparency = 1,
 
-        BorderSizePixel = 0,
+                BorderSizePixel = 0,
 
-        AutoButtonColor = false,
+                AutoButtonColor = false,
 
-        Text = "",
+                Text = "",
 
-        ZIndex = 30,
-    })
+                ZIndex = 30,
+            }
+        )
 
     local CloseIcon =
         CreateIcon(
@@ -909,71 +1196,87 @@ function DarkyUI:CreateWindow(config)
             COLORS.Danger
     end
 
-    --==================================================
+    --====================================================
     -- BODY
-    --==================================================
+    --====================================================
 
-    local Body = New("Frame", {
-        Parent = Main,
+    local Body =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Main,
 
-        Position = UDim2.fromOffset(
-            0,
-            58
-        ),
+                Position =
+                    UDim2.fromOffset(
+                        0,
+                        58
+                    ),
 
-        Size = UDim2.new(
-            1,
-            0,
-            1,
-            -58
-        ),
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        1,
+                        -58
+                    ),
 
-        BackgroundTransparency = 1,
+                BackgroundTransparency = 1,
 
-        BorderSizePixel = 0,
+                BorderSizePixel = 0,
 
-        ZIndex = 10,
-    })
+                ZIndex = 10,
+            }
+        )
 
-    --==================================================
+    --====================================================
     -- TAB BAR
-    --==================================================
+    --====================================================
 
-    local TabBar = New("ScrollingFrame", {
-        Parent = Body,
+    local TabBar =
+        New(
+            "ScrollingFrame",
+            {
+                Parent =
+                    Body,
 
-        Name = "TabBar",
+                Name =
+                    "TabBar",
 
-        Position = UDim2.fromOffset(
-            8,
-            8
-        ),
+                Position =
+                    UDim2.fromOffset(
+                        8,
+                        8
+                    ),
 
-        Size = UDim2.fromOffset(
-            145,
-            266
-        ),
+                Size =
+                    UDim2.fromOffset(
+                        145,
+                        266
+                    ),
 
-        BackgroundColor3 =
-            COLORS.Background2,
+                BackgroundColor3 =
+                    COLORS.Background2,
 
-        BorderSizePixel = 0,
+                BorderSizePixel = 0,
 
-        ScrollBarThickness = 3,
+                ScrollBarThickness = 3,
 
-        ScrollBarImageColor3 =
-            COLORS.Border,
+                ScrollBarImageColor3 =
+                    COLORS.Border,
 
-        ScrollingDirection =
-            Enum.ScrollingDirection.Y,
+                ScrollingDirection =
+                    Enum.ScrollingDirection.Y,
 
-        CanvasSize = UDim2.new(),
+                CanvasSize =
+                    UDim2.new(),
 
-        AutomaticCanvasSize =
-            Enum.AutomaticSize.Y,
+                AutomaticCanvasSize =
+                    Enum.AutomaticSize.Y,
 
-        ZIndex = 11,
-    })
+                ZIndex = 11,
+            }
+        )
 
     AddStroke(
         TabBar,
@@ -989,48 +1292,62 @@ function DarkyUI:CreateWindow(config)
         6
     )
 
-    local TabLayout = New("UIListLayout", {
-        Parent = TabBar,
+    local TabLayout =
+        New(
+            "UIListLayout",
+            {
+                Parent =
+                    TabBar,
 
-        FillDirection =
-            Enum.FillDirection.Vertical,
+                FillDirection =
+                    Enum.FillDirection.Vertical,
 
-        HorizontalAlignment =
-            Enum.HorizontalAlignment.Center,
+                HorizontalAlignment =
+                    Enum.HorizontalAlignment.Center,
 
-        SortOrder =
-            Enum.SortOrder.LayoutOrder,
+                SortOrder =
+                    Enum.SortOrder.LayoutOrder,
 
-        Padding =
-            UDim.new(0, 5),
-    })
+                Padding =
+                    UDim.new(
+                        0,
+                        5
+                    ),
+            }
+        )
 
-    --==================================================
-    -- USER PROFILE
-    --==================================================
+    --====================================================
+    -- PROFILE
+    --====================================================
 
     if Window.UserConfig.Profile
         or Window.UserConfig.Username then
 
-        local ProfileHolder = New("Frame", {
-            Parent = TabBar,
+        local ProfileHolder =
+            New(
+                "Frame",
+                {
+                    Parent =
+                        TabBar,
 
-            Size = UDim2.new(
-                1,
-                0,
-                0,
-                50
-            ),
+                    Size =
+                        UDim2.new(
+                            1,
+                            0,
+                            0,
+                            50
+                        ),
 
-            BackgroundColor3 =
-                COLORS.Panel,
+                    BackgroundColor3 =
+                        COLORS.Panel,
 
-            BorderSizePixel = 0,
+                    BorderSizePixel = 0,
 
-            LayoutOrder = -100,
+                    LayoutOrder = -100,
 
-            ZIndex = 13,
-        })
+                    ZIndex = 13,
+                }
+            )
 
         AddStroke(
             ProfileHolder,
@@ -1039,31 +1356,37 @@ function DarkyUI:CreateWindow(config)
         )
 
         if Window.UserConfig.Profile then
-            local Avatar = New("ImageLabel", {
-                Parent = ProfileHolder,
 
-                Position =
-                    UDim2.fromOffset(
-                        7,
-                        7
-                    ),
+            local Avatar =
+                New(
+                    "ImageLabel",
+                    {
+                        Parent =
+                            ProfileHolder,
 
-                Size =
-                    UDim2.fromOffset(
-                        36,
-                        36
-                    ),
+                        Position =
+                            UDim2.fromOffset(
+                                7,
+                                7
+                            ),
 
-                BackgroundColor3 =
-                    COLORS.Panel2,
+                        Size =
+                            UDim2.fromOffset(
+                                36,
+                                36
+                            ),
 
-                BorderSizePixel = 0,
+                        BackgroundColor3 =
+                            COLORS.Panel2,
 
-                Image =
-                    GetProfileImage(),
+                        BorderSizePixel = 0,
 
-                ZIndex = 14,
-            })
+                        Image =
+                            GetProfileImage(),
+
+                        ZIndex = 14,
+                    }
+                )
 
             AddStroke(
                 Avatar,
@@ -1073,154 +1396,181 @@ function DarkyUI:CreateWindow(config)
         end
 
         if Window.UserConfig.Username then
+
             local x =
                 Window.UserConfig.Profile
-                and 49
-                or 8
+                    and 49
+                    or 8
 
-            New("TextLabel", {
-                Parent = ProfileHolder,
+            New(
+                "TextLabel",
+                {
+                    Parent =
+                        ProfileHolder,
 
-                BackgroundTransparency = 1,
+                    BackgroundTransparency = 1,
 
-                Position =
-                    UDim2.fromOffset(
-                        x,
-                        7
-                    ),
+                    Position =
+                        UDim2.fromOffset(
+                            x,
+                            7
+                        ),
 
-                Size =
-                    UDim2.new(
-                        1,
-                        -x - 5,
-                        0,
-                        19
-                    ),
+                    Size =
+                        UDim2.new(
+                            1,
+                            -x - 5,
+                            0,
+                            19
+                        ),
 
-                Text =
-                    LocalPlayer.DisplayName,
+                    Text =
+                        LocalPlayer.DisplayName,
 
-                TextColor3 =
-                    COLORS.Text,
+                    TextColor3 =
+                        COLORS.Text,
 
-                TextSize = 11,
+                    TextSize = 11,
 
-                Font =
-                    Enum.Font.GothamBold,
+                    Font =
+                        Enum.Font.GothamBold,
 
-                TextXAlignment =
-                    Enum.TextXAlignment.Left,
+                    TextXAlignment =
+                        Enum.TextXAlignment.Left,
 
-                TextTruncate =
-                    Enum.TextTruncate.AtEnd,
+                    TextTruncate =
+                        Enum.TextTruncate.AtEnd,
 
-                ZIndex = 14,
-            })
+                    ZIndex = 14,
+                }
+            )
 
-            New("TextLabel", {
-                Parent = ProfileHolder,
+            New(
+                "TextLabel",
+                {
+                    Parent =
+                        ProfileHolder,
 
-                BackgroundTransparency = 1,
+                    BackgroundTransparency = 1,
 
-                Position =
-                    UDim2.fromOffset(
-                        x,
-                        26
-                    ),
+                    Position =
+                        UDim2.fromOffset(
+                            x,
+                            26
+                        ),
 
-                Size =
-                    UDim2.new(
-                        1,
-                        -x - 5,
-                        0,
-                        16
-                    ),
+                    Size =
+                        UDim2.new(
+                            1,
+                            -x - 5,
+                            0,
+                            16
+                        ),
 
-                Text =
-                    "@" .. LocalPlayer.Name,
+                    Text =
+                        "@" ..
+                        LocalPlayer.Name,
 
-                TextColor3 =
-                    COLORS.SubText,
+                    TextColor3 =
+                        COLORS.SubText,
 
-                TextSize = 9,
+                    TextSize = 9,
 
-                Font =
-                    Enum.Font.Gotham,
+                    Font =
+                        Enum.Font.Gotham,
 
-                TextXAlignment =
-                    Enum.TextXAlignment.Left,
+                    TextXAlignment =
+                        Enum.TextXAlignment.Left,
 
-                TextTruncate =
-                    Enum.TextTruncate.AtEnd,
+                    TextTruncate =
+                        Enum.TextTruncate.AtEnd,
 
-                ZIndex = 14,
-            })
+                    ZIndex = 14,
+                }
+            )
         end
     end
 
-    --==================================================
+    --====================================================
     -- CONTENT
-    --==================================================
+    --====================================================
 
-    local Content = New("Frame", {
-        Parent = Body,
+    local Content =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Body,
 
-        Position = UDim2.fromOffset(
-            160,
-            8
-        ),
+                Position =
+                    UDim2.fromOffset(
+                        160,
+                        8
+                    ),
 
-        Size = UDim2.new(
-            1,
-            -168,
-            1,
-            -16
-        ),
+                Size =
+                    UDim2.new(
+                        1,
+                        -168,
+                        1,
+                        -16
+                    ),
 
-        BackgroundTransparency = 1,
+                BackgroundTransparency = 1,
 
-        BorderSizePixel = 0,
+                BorderSizePixel = 0,
 
-        ZIndex = 11,
-    })
+                ZIndex = 11,
+            }
+        )
 
-    --==================================================
-    -- SEARCH FUNCTION
-    --==================================================
+    --====================================================
+    -- SEARCH SYSTEM
+    --====================================================
 
     local function SearchElements(text)
-        text = tostring(
-            text or ""
-        ):lower()
+
+        text =
+            tostring(
+                text or ""
+            ):lower()
 
         for _, element in ipairs(
             Window.Elements
         ) do
+
             if element.Root
                 and element.Root.Parent then
 
                 if text == "" then
-                    element.Root.Visible = true
+
+                    element.Root.Visible =
+                        true
+
                 else
-                    local title =
+
+                    local elementTitle =
                         tostring(
                             element.Title
-                            or ""
+                                or ""
                         ):lower()
 
-                    local desc =
+                    local elementDesc =
                         tostring(
                             element.Desc
-                            or ""
+                                or ""
                         ):lower()
 
                     element.Root.Visible =
-                        title:find(
+                        elementTitle:find(
                             text,
                             1,
                             true
                         ) ~= nil
-                        or desc:find(
+
+                        or
+
+                        elementDesc:find(
                             text,
                             1,
                             true
@@ -1231,22 +1581,29 @@ function DarkyUI:CreateWindow(config)
     end
 
     if SearchBox then
+
         SearchBox:GetPropertyChangedSignal(
             "Text"
-        ):Connect(function()
-            SearchElements(
-                SearchBox.Text
-            )
-        end)
+        ):Connect(
+            function()
+
+                SearchElements(
+                    SearchBox.Text
+                )
+
+            end
+        )
     end
 
-    --==================================================
-    -- MAIN WINDOW MINIMIZE
-    --==================================================
+    --====================================================
+    -- WINDOW METHODS
+    --====================================================
 
     function Window:Minimize()
+
         if Window.Destroyed
             or Window.Minimized then
+
             return
         end
 
@@ -1267,11 +1624,13 @@ function DarkyUI:CreateWindow(config)
         task.delay(
             0.22,
             function()
+
                 if Window.Destroyed then
                     return
                 end
 
-                Main.Visible = false
+                Main.Visible =
+                    false
 
                 FloatingButton.Visible =
                     true
@@ -1293,21 +1652,27 @@ function DarkyUI:CreateWindow(config)
                             )
                     }
                 )
+
             end
         )
     end
 
     function Window:Restore()
+
         if Window.Destroyed
             or not Window.Minimized then
+
             return
         end
 
-        Window.Minimized = false
+        Window.Minimized =
+            false
 
-        FloatingButton.Visible = false
+        FloatingButton.Visible =
+            false
 
-        Main.Visible = true
+        Main.Visible =
+            true
 
         Main.Size =
             UDim2.fromOffset(
@@ -1320,12 +1685,87 @@ function DarkyUI:CreateWindow(config)
             TWEEN_MED,
             {
                 Size =
-                    UDim2.fromOffset(
-                        550,
-                        340
-                    )
+                    DEFAULT_WINDOW_SIZE
             }
         )
+    end
+
+    function Window:Destroy()
+
+        if Window.Destroyed then
+            return
+        end
+
+        Window.Destroyed =
+            true
+
+        if ScreenGui then
+            ScreenGui:Destroy()
+        end
+    end
+
+    function Window:SetTitle(title)
+
+        Window.Title =
+            tostring(title)
+
+        TitleLabel.Text =
+            Window.Title
+    end
+
+    function Window:SetSubtitle(subtitle)
+
+        Window.Subtitle =
+            tostring(subtitle)
+
+        SubtitleLabel.Text =
+            Window.Subtitle
+    end
+
+    function Window:SetIcon(icon)
+
+        Window.Image =
+            icon
+
+        local asset =
+            ResolveIcon(icon)
+
+        if not asset then
+            return
+        end
+
+        if WindowIcon then
+            WindowIcon.Image =
+                asset
+        end
+
+        if FloatingIcon then
+            FloatingIcon.Image =
+                asset
+        end
+    end
+
+    function Window:SetVisible(value)
+
+        value =
+            value == true
+
+        if value then
+
+            if Window.Minimized then
+                Window:Restore()
+            else
+                Main.Visible = true
+            end
+
+        else
+
+            Main.Visible = false
+        end
+    end
+
+    function Window:GetActiveTab()
+        return Window.ActiveTab
     end
 
     MinimizeButton.MouseButton1Click:Connect(
@@ -1334,25 +1774,38 @@ function DarkyUI:CreateWindow(config)
         end
     )
 
-    --==================================================
-    -- FLOATING BUTTON DRAGGING
-    --==================================================
+    CloseButton.MouseButton1Click:Connect(
+        function()
+            Window:Destroy()
+        end
+    )
+
+    --====================================================
+    -- FLOATING BUTTON DRAG
+    --====================================================
 
     do
+
         local dragging = false
         local dragInput
         local dragStart
         local startPosition
 
-        local clickStarted = false
+        local moved = false
 
-        local function update(input)
+        local function Update(input)
+
             if not dragging then
                 return
             end
 
             local delta =
-                input.Position - dragStart
+                input.Position
+                - dragStart
+
+            if delta.Magnitude > 7 then
+                moved = true
+            end
 
             FloatingButton.Position =
                 UDim2.new(
@@ -1368,13 +1821,15 @@ function DarkyUI:CreateWindow(config)
 
         FloatingButton.InputBegan:Connect(
             function(input)
+
                 if input.UserInputType ==
                     Enum.UserInputType.MouseButton1
                     or input.UserInputType ==
                     Enum.UserInputType.Touch then
 
                     dragging = true
-                    clickStarted = true
+
+                    moved = false
 
                     dragStart =
                         input.Position
@@ -1386,33 +1841,27 @@ function DarkyUI:CreateWindow(config)
 
                     input.Changed:Connect(
                         function()
+
                             if input.UserInputState ==
                                 Enum.UserInputState.End then
 
                                 dragging = false
 
-                                if clickStarted then
-                                    local distance =
-                                        (
-                                            input.Position
-                                            - dragStart
-                                        ).Magnitude
-
-                                    if distance < 8 then
-                                        Window:Restore()
-                                    end
-
-                                    clickStarted = false
+                                if not moved then
+                                    Window:Restore()
                                 end
                             end
+
                         end
                     )
                 end
+
             end
         )
 
         FloatingButton.InputChanged:Connect(
             function(input)
+
                 if input.UserInputType ==
                     Enum.UserInputType.MouseMovement
                     or input.UserInputType ==
@@ -1420,155 +1869,79 @@ function DarkyUI:CreateWindow(config)
 
                     dragInput = input
                 end
+
             end
         )
 
         UserInputService.InputChanged:Connect(
             function(input)
+
                 if input == dragInput then
-                    update(input)
-
-                    if (
-                        input.Position
-                        - dragStart
-                    ).Magnitude > 8 then
-
-                        clickStarted = false
-                    end
+                    Update(input)
                 end
+
             end
         )
     end
 
-    --==================================================
-    -- DESTROY
-    --==================================================
-
-    function Window:Destroy()
-        if Window.Destroyed then
-            return
-        end
-
-        Window.Destroyed = true
-
-        if ScreenGui then
-            ScreenGui:Destroy()
-        end
-    end
-
-    CloseButton.MouseButton1Click:Connect(
-        function()
-            Window:Destroy()
-        end
-    )
-
-    --==================================================
-    -- WINDOW METHODS
-    --==================================================
-
-    function Window:SetTitle(title)
-        Window.Title = tostring(title)
-
-        TitleLabel.Text = Window.Title
-    end
-
-    function Window:SetSubtitle(subtitle)
-        Window.Subtitle =
-            tostring(subtitle)
-
-        SubtitleLabel.Text =
-            Window.Subtitle
-    end
-
-    function Window:SetIcon(icon)
-        Window.Image = icon
-
-        local asset =
-            ResolveIcon(icon)
-
-        if not asset then
-            return
-        end
-
-        if WindowIcon
-            and WindowIcon:IsA("ImageLabel") then
-
-            WindowIcon.Image = asset
-        end
-
-        if FloatingIcon
-            and FloatingIcon:IsA("ImageLabel") then
-
-            FloatingIcon.Image = asset
-        end
-    end
-
-    function Window:SetVisible(value)
-        value = value == true
-
-        if value then
-            if Window.Minimized then
-                Window:Restore()
-            else
-                Main.Visible = true
-            end
-        else
-            Main.Visible = false
-        end
-    end
-
-    function Window:GetActiveTab()
-        return Window.ActiveTab
-    end
-
-    --==================================================
+    --====================================================
     -- CREATE TAB
-    --==================================================
+    --====================================================
 
     function Window:CreateTab(tabConfig)
-        tabConfig = tabConfig or {}
+
+        tabConfig =
+            tabConfig or {}
 
         local Tab = {}
 
         Tab.Title =
-            tabConfig.Title or "Tab"
+            tabConfig.Title
+                or "Tab"
 
         Tab.Icon =
-            tabConfig.Icon or "circle"
+            tabConfig.Icon
+                or "circle"
 
         Tab.Sections = {}
 
-        --==================================================
+        --================================================
         -- TAB BUTTON
-        --==================================================
+        --================================================
 
-        local TabButton = New("TextButton", {
-            Parent = TabBar,
+        local TabButton =
+            New(
+                "TextButton",
+                {
+                    Parent =
+                        TabBar,
 
-            Name = "TabButton",
+                    Name =
+                        "TabButton",
 
-            Size =
-                UDim2.new(
-                    1,
-                    0,
-                    0,
-                    38
-                ),
+                    Size =
+                        UDim2.new(
+                            1,
+                            0,
+                            0,
+                            38
+                        ),
 
-            BackgroundColor3 =
-                COLORS.Panel,
+                    BackgroundColor3 =
+                        COLORS.Panel,
 
-            BorderSizePixel = 0,
+                    BorderSizePixel = 0,
 
-            AutoButtonColor = false,
+                    AutoButtonColor = false,
 
-            Text = "",
+                    Text = "",
 
-            LayoutOrder =
-                #Window.Tabs + 1,
+                    LayoutOrder =
+                        #Window.Tabs + 1,
 
-            ZIndex = 15,
-        })
+                    ZIndex = 15,
+                }
+            )
 
         AddStroke(
             TabButton,
@@ -1576,50 +1949,60 @@ function DarkyUI:CreateWindow(config)
             1
         )
 
-        local SelectedBar = New("Frame", {
-            Parent = TabButton,
+        local SelectedBar =
+            New(
+                "Frame",
+                {
+                    Parent =
+                        TabButton,
 
-            Position =
-                UDim2.fromOffset(
-                    0,
-                    0
-                ),
+                    Position =
+                        UDim2.fromOffset(
+                            0,
+                            0
+                        ),
 
-            Size =
-                UDim2.fromOffset(
-                    3,
-                    38
-                ),
+                    Size =
+                        UDim2.fromOffset(
+                            3,
+                            38
+                        ),
 
-            BackgroundColor3 =
-                COLORS.Accent,
+                    BackgroundColor3 =
+                        COLORS.Accent,
 
-            BorderSizePixel = 0,
+                    BorderSizePixel = 0,
 
-            Visible = false,
+                    Visible = false,
 
-            ZIndex = 16,
-        })
+                    ZIndex = 16,
+                }
+            )
 
-        local TabIconHolder = New("Frame", {
-            Parent = TabButton,
+        local TabIconHolder =
+            New(
+                "Frame",
+                {
+                    Parent =
+                        TabButton,
 
-            BackgroundTransparency = 1,
+                    BackgroundTransparency = 1,
 
-            Position =
-                UDim2.fromOffset(
-                    8,
-                    0
-                ),
+                    Position =
+                        UDim2.fromOffset(
+                            8,
+                            0
+                        ),
 
-            Size =
-                UDim2.fromOffset(
-                    38,
-                    38
-                ),
+                    Size =
+                        UDim2.fromOffset(
+                            38,
+                            38
+                        ),
 
-            ZIndex = 16,
-        })
+                    ZIndex = 16,
+                }
+            )
 
         local TabIcon =
             CreateIcon(
@@ -1636,114 +2019,131 @@ function DarkyUI:CreateWindow(config)
             )
 
         if not TabIcon then
-            New("TextLabel", {
-                Parent = TabIconHolder,
 
-                BackgroundTransparency = 1,
+            New(
+                "TextLabel",
+                {
+                    Parent =
+                        TabIconHolder,
 
-                Size =
-                    UDim2.fromScale(
-                        1,
-                        1
-                    ),
+                    BackgroundTransparency = 1,
 
-                Text = string.sub(
-                    Tab.Title,
-                    1,
-                    1
-                ):upper(),
+                    Size =
+                        UDim2.fromScale(
+                            1,
+                            1
+                        ),
 
-                TextColor3 =
-                    COLORS.Text,
+                    Text =
+                        string.sub(
+                            Tab.Title,
+                            1,
+                            1
+                        ):upper(),
 
-                TextSize = 12,
+                    TextColor3 =
+                        COLORS.Text,
 
-                Font =
-                    Enum.Font.GothamBold,
+                    TextSize = 12,
 
-                ZIndex = 17,
-            })
+                    Font =
+                        Enum.Font.GothamBold,
+
+                    ZIndex = 17,
+                }
+            )
         end
 
-        local TabText = New("TextLabel", {
-            Parent = TabButton,
+        local TabText =
+            New(
+                "TextLabel",
+                {
+                    Parent =
+                        TabButton,
 
-            BackgroundTransparency = 1,
+                    BackgroundTransparency = 1,
 
-            Position =
-                UDim2.fromOffset(
-                    47,
-                    0
-                ),
+                    Position =
+                        UDim2.fromOffset(
+                            47,
+                            0
+                        ),
 
-            Size =
-                UDim2.new(
-                    1,
-                    -53,
-                    1,
-                    0
-                ),
+                    Size =
+                        UDim2.new(
+                            1,
+                            -53,
+                            1,
+                            0
+                        ),
 
-            Text = Tab.Title,
+                    Text =
+                        Tab.Title,
 
-            TextColor3 =
-                COLORS.SubText,
+                    TextColor3 =
+                        COLORS.SubText,
 
-            TextSize = 11,
+                    TextSize = 11,
 
-            Font =
-                Enum.Font.GothamMedium,
+                    Font =
+                        Enum.Font.GothamMedium,
 
-            TextXAlignment =
-                Enum.TextXAlignment.Left,
+                    TextXAlignment =
+                        Enum.TextXAlignment.Left,
 
-            TextTruncate =
-                Enum.TextTruncate.AtEnd,
+                    TextTruncate =
+                        Enum.TextTruncate.AtEnd,
 
-            ZIndex = 17,
-        })
+                    ZIndex = 17,
+                }
+            )
 
-        --==================================================
-        -- TAB PAGE
-        --==================================================
+        --================================================
+        -- PAGE
+        --================================================
 
-        local Page = New("ScrollingFrame", {
-            Parent = Content,
+        local Page =
+            New(
+                "ScrollingFrame",
+                {
+                    Parent =
+                        Content,
 
-            Name =
-                "Page_" ..
-                tostring(
-                    #Window.Tabs + 1
-                ),
+                    Name =
+                        "Page_" ..
+                        tostring(
+                            #Window.Tabs + 1
+                        ),
 
-            Size =
-                UDim2.fromScale(
-                    1,
-                    1
-                ),
+                    Size =
+                        UDim2.fromScale(
+                            1,
+                            1
+                        ),
 
-            BackgroundTransparency = 1,
+                    BackgroundTransparency = 1,
 
-            BorderSizePixel = 0,
+                    BorderSizePixel = 0,
 
-            ScrollBarThickness = 4,
+                    ScrollBarThickness = 4,
 
-            ScrollBarImageColor3 =
-                COLORS.Border,
+                    ScrollBarImageColor3 =
+                        COLORS.Border,
 
-            CanvasSize =
-                UDim2.new(),
+                    CanvasSize =
+                        UDim2.new(),
 
-            AutomaticCanvasSize =
-                Enum.AutomaticSize.Y,
+                    AutomaticCanvasSize =
+                        Enum.AutomaticSize.Y,
 
-            ScrollingDirection =
-                Enum.ScrollingDirection.Y,
+                    ScrollingDirection =
+                        Enum.ScrollingDirection.Y,
 
-            Visible = false,
+                    Visible = false,
 
-            ZIndex = 12,
-        })
+                    ZIndex = 12,
+                }
+            )
 
         AddPadding(
             Page,
@@ -1753,34 +2153,52 @@ function DarkyUI:CreateWindow(config)
             8
         )
 
-        local PageLayout = New("UIListLayout", {
-            Parent = Page,
+        local PageLayout =
+            New(
+                "UIListLayout",
+                {
+                    Parent =
+                        Page,
 
-            FillDirection =
-                Enum.FillDirection.Vertical,
+                    FillDirection =
+                        Enum.FillDirection.Vertical,
 
-            SortOrder =
-                Enum.SortOrder.LayoutOrder,
+                    SortOrder =
+                        Enum.SortOrder.LayoutOrder,
 
-            Padding =
-                UDim.new(
-                    0,
-                    7
-                ),
-        })
+                    Padding =
+                        UDim.new(
+                            0,
+                            7
+                        ),
+                }
+            )
 
-        Tab.Button = TabButton
-        Tab.Page = Page
-        Tab.Layout = PageLayout
+        Tab.Button =
+            TabButton
 
-        --==================================================
-        -- TAB SELECT
-        --==================================================
+        Tab.Page =
+            Page
+
+        Tab.Layout =
+            PageLayout
+
+        Tab._SelectedBar =
+            SelectedBar
+
+        Tab._TabText =
+            TabText
+
+        --================================================
+        -- SELECT
+        --================================================
 
         function Tab:Select()
+
             for _, otherTab in ipairs(
                 Window.Tabs
             ) do
+
                 local active =
                     otherTab == Tab
 
@@ -1791,11 +2209,13 @@ function DarkyUI:CreateWindow(config)
                     active
 
                 if otherTab._SelectedBar then
+
                     otherTab._SelectedBar.Visible =
                         active
                 end
 
                 if otherTab._TabText then
+
                     otherTab._TabText.TextColor3 =
                         active
                         and COLORS.Text
@@ -1809,22 +2229,21 @@ function DarkyUI:CreateWindow(config)
                         BackgroundColor3 =
                             active
                             and COLORS.Panel2
-                            or COLORS.Panel
+                            or COLORS.Panel,
                     }
                 )
             end
 
-            Window.ActiveTab = Tab
+            Window.ActiveTab =
+                Tab
 
-            if Window.SearchBox then
+            if SearchBox then
+
                 SearchElements(
-                    Window.SearchBox.Text
+                    SearchBox.Text
                 )
             end
         end
-
-        Tab._SelectedBar = SelectedBar
-        Tab._TabText = TabText
 
         TabButton.MouseButton1Click:Connect(
             function()
@@ -1834,7 +2253,9 @@ function DarkyUI:CreateWindow(config)
 
         TabButton.MouseEnter:Connect(
             function()
+
                 if not Tab.Selected then
+
                     Tween(
                         TabButton,
                         TWEEN_FAST,
@@ -1849,7 +2270,9 @@ function DarkyUI:CreateWindow(config)
 
         TabButton.MouseLeave:Connect(
             function()
+
                 if not Tab.Selected then
+
                     Tween(
                         TabButton,
                         TWEEN_FAST,
@@ -1862,13 +2285,14 @@ function DarkyUI:CreateWindow(config)
             end
         )
 
-        --==================================================
-        -- SECTION
-        --==================================================
+        --================================================
+        -- CREATE SECTION
+        --================================================
 
         function Tab:CreateSection(
             sectionConfig
         )
+
             sectionConfig =
                 sectionConfig or {}
 
@@ -1876,43 +2300,45 @@ function DarkyUI:CreateWindow(config)
 
             Section.Title =
                 sectionConfig.Title
-                or "Section"
+                    or "Section"
 
             -- IMPORTANT:
-            -- No forced minimum height.
-            -- The section grows only according
-            -- to its actual contents.
-            local SectionFrame = New(
-                "Frame",
-                {
-                    Parent = Page,
+            -- The section has NO fixed Size.
+            -- It automatically grows from its contents.
 
-                    Name =
-                        "Section_" ..
-                        Section.Title,
+            local SectionFrame =
+                New(
+                    "Frame",
+                    {
+                        Parent =
+                            Page,
 
-                    Size =
-                        UDim2.new(
-                            1,
-                            -2,
-                            0,
-                            0
-                        ),
+                        Name =
+                            "Section_" ..
+                            Section.Title,
 
-                    AutomaticSize =
-                        Enum.AutomaticSize.Y,
+                        Size =
+                            UDim2.new(
+                                1,
+                                -2,
+                                0,
+                                0
+                            ),
 
-                    BackgroundColor3 =
-                        COLORS.Background2,
+                        AutomaticSize =
+                            Enum.AutomaticSize.Y,
 
-                    BorderSizePixel = 0,
+                        BackgroundColor3 =
+                            COLORS.Background2,
 
-                    LayoutOrder =
-                        #Tab.Sections + 1,
+                        BorderSizePixel = 0,
 
-                    ZIndex = 13,
-                }
-            )
+                        LayoutOrder =
+                            #Tab.Sections + 1,
+
+                        ZIndex = 13,
+                    }
+                )
 
             AddStroke(
                 SectionFrame,
@@ -1943,8 +2369,7 @@ function DarkyUI:CreateWindow(config)
                                 20
                             ),
 
-                        BackgroundTransparency =
-                            1,
+                        BackgroundTransparency = 1,
 
                         Text =
                             Section.Title,
@@ -1988,8 +2413,7 @@ function DarkyUI:CreateWindow(config)
                         AutomaticSize =
                             Enum.AutomaticSize.Y,
 
-                        BackgroundTransparency =
-                            1,
+                        BackgroundTransparency = 1,
 
                         BorderSizePixel = 0,
 
@@ -2035,32 +2459,36 @@ function DarkyUI:CreateWindow(config)
                 Section
             )
 
-            --==================================================
-            -- REGISTER
-            --==================================================
+            --============================================
+            -- REGISTER ELEMENT
+            --============================================
 
             local function RegisterElement(
                 root,
                 title,
                 desc
             )
+
                 table.insert(
                     Window.Elements,
                     {
                         Root = root,
+
                         Title = title,
+
                         Desc = desc,
                     }
                 )
             end
 
-            --==================================================
+            --============================================
             -- BUTTON
-            --==================================================
+            --============================================
 
             function Section:CreateButton(
                 buttonConfig
             )
+
                 buttonConfig =
                     buttonConfig or {}
 
@@ -2068,15 +2496,15 @@ function DarkyUI:CreateWindow(config)
 
                 local title =
                     buttonConfig.Title
-                    or "Button"
+                        or "Button"
 
                 local desc =
                     buttonConfig.Desc
-                    or ""
+                        or ""
 
                 local locked =
                     buttonConfig.Locked
-                    == true
+                        == true
 
                 local root =
                     New(
@@ -2091,8 +2519,8 @@ function DarkyUI:CreateWindow(config)
                                     0,
                                     0,
                                     desc ~= ""
-                                    and 53
-                                    or 40
+                                        and 53
+                                        or 40
                                 ),
 
                             BackgroundColor3 =
@@ -2122,13 +2550,11 @@ function DarkyUI:CreateWindow(config)
                                     1
                                 ),
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
+
+                            AutoButtonColor = false,
 
                             Text = "",
-
-                            AutoButtonColor =
-                                false,
 
                             ZIndex = 17,
                         }
@@ -2139,15 +2565,14 @@ function DarkyUI:CreateWindow(config)
                     {
                         Parent = root,
 
-                        BackgroundTransparency =
-                            1,
+                        BackgroundTransparency = 1,
 
                         Position =
                             UDim2.fromOffset(
                                 11,
                                 desc ~= ""
-                                and 7
-                                or 0
+                                    and 7
+                                    or 0
                             ),
 
                         Size =
@@ -2178,13 +2603,13 @@ function DarkyUI:CreateWindow(config)
                 )
 
                 if desc ~= "" then
+
                     New(
                         "TextLabel",
                         {
                             Parent = root,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -2222,6 +2647,7 @@ function DarkyUI:CreateWindow(config)
                 end
 
                 if locked then
+
                     local lock =
                         CreateIcon(
                             root,
@@ -2242,7 +2668,9 @@ function DarkyUI:CreateWindow(config)
                     end
 
                     click.Active = false
+
                 else
+
                     CreateIcon(
                         root,
                         "chevron-right",
@@ -2258,6 +2686,7 @@ function DarkyUI:CreateWindow(config)
 
                     click.MouseEnter:Connect(
                         function()
+
                             Tween(
                                 root,
                                 TWEEN_FAST,
@@ -2271,6 +2700,7 @@ function DarkyUI:CreateWindow(config)
 
                     click.MouseLeave:Connect(
                         function()
+
                             Tween(
                                 root,
                                 TWEEN_FAST,
@@ -2284,6 +2714,7 @@ function DarkyUI:CreateWindow(config)
 
                     click.MouseButton1Click:Connect(
                         function()
+
                             if typeof(
                                 buttonConfig.Callback
                             ) == "function" then
@@ -2296,7 +2727,8 @@ function DarkyUI:CreateWindow(config)
                     )
                 end
 
-                Button.Root = root
+                Button.Root =
+                    root
 
                 RegisterElement(
                     root,
@@ -2307,13 +2739,14 @@ function DarkyUI:CreateWindow(config)
                 return Button
             end
 
-            --==================================================
+            --============================================
             -- TOGGLE
-            --==================================================
+            --============================================
 
             function Section:CreateToggle(
                 toggleConfig
             )
+
                 toggleConfig =
                     toggleConfig or {}
 
@@ -2321,15 +2754,15 @@ function DarkyUI:CreateWindow(config)
 
                 local title =
                     toggleConfig.Title
-                    or "Toggle"
+                        or "Toggle"
 
                 local desc =
                     toggleConfig.Desc
-                    or ""
+                        or ""
 
                 local state =
                     toggleConfig.Value
-                    == true
+                        == true
 
                 local root =
                     New(
@@ -2344,8 +2777,8 @@ function DarkyUI:CreateWindow(config)
                                     0,
                                     0,
                                     desc ~= ""
-                                    and 57
-                                    or 44
+                                        and 57
+                                        or 44
                                 ),
 
                             BackgroundColor3 =
@@ -2368,15 +2801,14 @@ function DarkyUI:CreateWindow(config)
                     {
                         Parent = root,
 
-                        BackgroundTransparency =
-                            1,
+                        BackgroundTransparency = 1,
 
                         Position =
                             UDim2.fromOffset(
                                 11,
                                 desc ~= ""
-                                and 7
-                                or 0
+                                    and 7
+                                    or 0
                             ),
 
                         Size =
@@ -2405,13 +2837,13 @@ function DarkyUI:CreateWindow(config)
                 )
 
                 if desc ~= "" then
+
                     New(
                         "TextLabel",
                         {
                             Parent = root,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -2473,8 +2905,7 @@ function DarkyUI:CreateWindow(config)
 
                             BorderSizePixel = 0,
 
-                            AutoButtonColor =
-                                false,
+                            AutoButtonColor = false,
 
                             Text = "",
 
@@ -2492,7 +2923,8 @@ function DarkyUI:CreateWindow(config)
                     New(
                         "Frame",
                         {
-                            Parent = Switch,
+                            Parent =
+                                Switch,
 
                             Position =
                                 UDim2.fromOffset(
@@ -2515,8 +2947,10 @@ function DarkyUI:CreateWindow(config)
                         }
                     )
 
-                local function Update()
+                local function UpdateToggle()
+
                     if state then
+
                         Tween(
                             Switch,
                             TWEEN_FAST,
@@ -2542,7 +2976,9 @@ function DarkyUI:CreateWindow(config)
                                     COLORS.White,
                             }
                         )
+
                     else
+
                         Tween(
                             Switch,
                             TWEEN_FAST,
@@ -2573,10 +3009,11 @@ function DarkyUI:CreateWindow(config)
                     value,
                     callCallback
                 )
+
                     state =
                         value == true
 
-                    Update()
+                    UpdateToggle()
 
                     if callCallback ~= false
                         and typeof(
@@ -2596,6 +3033,7 @@ function DarkyUI:CreateWindow(config)
 
                 Switch.MouseButton1Click:Connect(
                     function()
+
                         Toggle:SetValue(
                             not state,
                             true
@@ -2603,9 +3041,10 @@ function DarkyUI:CreateWindow(config)
                     end
                 )
 
-                Toggle.Root = root
+                Toggle.Root =
+                    root
 
-                Update()
+                UpdateToggle()
 
                 RegisterElement(
                     root,
@@ -2616,13 +3055,14 @@ function DarkyUI:CreateWindow(config)
                 return Toggle
             end
 
-            --==================================================
+            --============================================
             -- SLIDER
-            --==================================================
+            --============================================
 
             function Section:CreateSlider(
                 sliderConfig
             )
+
                 sliderConfig =
                     sliderConfig or {}
 
@@ -2630,33 +3070,35 @@ function DarkyUI:CreateWindow(config)
 
                 local title =
                     sliderConfig.Title
-                    or "Slider"
+                        or "Slider"
 
                 local desc =
                     sliderConfig.Desc
-                    or ""
+                        or ""
 
                 local range =
                     sliderConfig.Value
-                    or {}
+                        or {}
 
                 local minimum =
-                    tonumber(range.Min)
-                    or 0
+                    tonumber(
+                        range.Min
+                    ) or 0
 
                 local maximum =
-                    tonumber(range.Max)
-                    or 100
+                    tonumber(
+                        range.Max
+                    ) or 100
 
                 local current =
-                    tonumber(range.Default)
-                    or minimum
+                    tonumber(
+                        range.Default
+                    ) or minimum
 
                 local step =
                     tonumber(
                         sliderConfig.Step
-                    )
-                    or 1
+                    ) or 1
 
                 local root =
                     New(
@@ -2671,8 +3113,8 @@ function DarkyUI:CreateWindow(config)
                                     0,
                                     0,
                                     desc ~= ""
-                                    and 67
-                                    or 56
+                                        and 67
+                                        or 56
                                 ),
 
                             BackgroundColor3 =
@@ -2695,8 +3137,7 @@ function DarkyUI:CreateWindow(config)
                     {
                         Parent = root,
 
-                        BackgroundTransparency =
-                            1,
+                        BackgroundTransparency = 1,
 
                         Position =
                             UDim2.fromOffset(
@@ -2735,8 +3176,7 @@ function DarkyUI:CreateWindow(config)
                         {
                             Parent = root,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.new(
@@ -2773,13 +3213,13 @@ function DarkyUI:CreateWindow(config)
                     )
 
                 if desc ~= "" then
+
                     New(
                         "TextLabel",
                         {
                             Parent = root,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -2817,14 +3257,15 @@ function DarkyUI:CreateWindow(config)
                     New(
                         "Frame",
                         {
-                            Parent = root,
+                            Parent =
+                                root,
 
                             Position =
                                 UDim2.fromOffset(
                                     11,
                                     desc ~= ""
-                                    and 49
-                                    or 38
+                                        and 49
+                                        or 38
                                 ),
 
                             Size =
@@ -2835,8 +3276,7 @@ function DarkyUI:CreateWindow(config)
                                     10
                                 ),
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             ZIndex = 18,
                         }
@@ -2884,7 +3324,8 @@ function DarkyUI:CreateWindow(config)
                     New(
                         "Frame",
                         {
-                            Parent = Track,
+                            Parent =
+                                Track,
 
                             Size =
                                 UDim2.new(
@@ -2907,7 +3348,8 @@ function DarkyUI:CreateWindow(config)
                     New(
                         "Frame",
                         {
-                            Parent = Track,
+                            Parent =
+                                Track,
 
                             AnchorPoint =
                                 Vector2.new(
@@ -2951,11 +3393,9 @@ function DarkyUI:CreateWindow(config)
                                     1
                                 ),
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
-                            AutoButtonColor =
-                                false,
+                            AutoButtonColor = false,
 
                             Text = "",
 
@@ -2966,6 +3406,7 @@ function DarkyUI:CreateWindow(config)
                 local function RoundStep(
                     value
                 )
+
                     value =
                         math.clamp(
                             value,
@@ -2979,12 +3420,9 @@ function DarkyUI:CreateWindow(config)
                                 (
                                     value
                                     - minimum
-                                )
-                                / step
-                            )
-                            + 0.5
-                        )
-                        * step
+                                ) / step
+                            ) + 0.5
+                        ) * step
 
                     return math.clamp(
                         minimum + stepped,
@@ -2997,6 +3435,7 @@ function DarkyUI:CreateWindow(config)
                     value,
                     callback
                 )
+
                     current =
                         RoundStep(value)
 
@@ -3041,7 +3480,9 @@ function DarkyUI:CreateWindow(config)
                     )
 
                     ValueLabel.Text =
-                        tostring(current)
+                        tostring(
+                            current
+                        )
 
                     if callback
                         and typeof(
@@ -3055,9 +3496,11 @@ function DarkyUI:CreateWindow(config)
                     end
                 end
 
-                local draggingSlider = false
+                local draggingSlider =
+                    false
 
                 local function SetFromX(x)
+
                     local startX =
                         SliderHolder.AbsolutePosition.X
 
@@ -3081,25 +3524,25 @@ function DarkyUI:CreateWindow(config)
 
                     UpdateSlider(
                         minimum
-                        +
-                        (
-                            maximum
-                            - minimum
-                        )
-                        * alpha,
+                            +
+                            (
+                                maximum
+                                - minimum
+                            )
+                            * alpha,
                         true
                     )
                 end
 
                 Drag.InputBegan:Connect(
                     function(input)
+
                         if input.UserInputType ==
                             Enum.UserInputType.MouseButton1
                             or input.UserInputType ==
                             Enum.UserInputType.Touch then
 
-                            draggingSlider =
-                                true
+                            draggingSlider = true
 
                             SetFromX(
                                 input.Position.X
@@ -3110,6 +3553,7 @@ function DarkyUI:CreateWindow(config)
 
                 UserInputService.InputChanged:Connect(
                     function(input)
+
                         if not draggingSlider then
                             return
                         end
@@ -3128,13 +3572,13 @@ function DarkyUI:CreateWindow(config)
 
                 UserInputService.InputEnded:Connect(
                     function(input)
+
                         if input.UserInputType ==
                             Enum.UserInputType.MouseButton1
                             or input.UserInputType ==
                             Enum.UserInputType.Touch then
 
-                            draggingSlider =
-                                false
+                            draggingSlider = false
                         end
                     end
                 )
@@ -3143,6 +3587,7 @@ function DarkyUI:CreateWindow(config)
                     value,
                     callCallback
                 )
+
                     UpdateSlider(
                         tonumber(value)
                             or minimum,
@@ -3159,6 +3604,7 @@ function DarkyUI:CreateWindow(config)
                     max,
                     default
                 )
+
                     minimum =
                         tonumber(min)
                         or minimum
@@ -3168,6 +3614,7 @@ function DarkyUI:CreateWindow(config)
                         or maximum
 
                     if default ~= nil then
+
                         current =
                             tonumber(
                                 default
@@ -3181,7 +3628,8 @@ function DarkyUI:CreateWindow(config)
                     )
                 end
 
-                Slider.Root = root
+                Slider.Root =
+                    root
 
                 UpdateSlider(
                     current,
@@ -3197,13 +3645,14 @@ function DarkyUI:CreateWindow(config)
                 return Slider
             end
 
-            --==================================================
+            --============================================
             -- INPUT
-            --==================================================
+            --============================================
 
             function Section:CreateInput(
                 inputConfig
             )
+
                 inputConfig =
                     inputConfig or {}
 
@@ -3211,11 +3660,11 @@ function DarkyUI:CreateWindow(config)
 
                 local title =
                     inputConfig.Title
-                    or "Input"
+                        or "Input"
 
                 local desc =
                     inputConfig.Desc
-                    or ""
+                        or ""
 
                 local root =
                     New(
@@ -3230,8 +3679,8 @@ function DarkyUI:CreateWindow(config)
                                     0,
                                     0,
                                     desc ~= ""
-                                    and 75
-                                    or 62
+                                        and 75
+                                        or 62
                                 ),
 
                             BackgroundColor3 =
@@ -3254,8 +3703,7 @@ function DarkyUI:CreateWindow(config)
                     {
                         Parent = root,
 
-                        BackgroundTransparency =
-                            1,
+                        BackgroundTransparency = 1,
 
                         Position =
                             UDim2.fromOffset(
@@ -3291,13 +3739,13 @@ function DarkyUI:CreateWindow(config)
                 local inputY = 27
 
                 if desc ~= "" then
+
                     New(
                         "TextLabel",
                         {
                             Parent = root,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -3333,7 +3781,7 @@ function DarkyUI:CreateWindow(config)
                     inputY = 46
                 end
 
-                local box =
+                local Box =
                     New(
                         "Frame",
                         {
@@ -3363,7 +3811,7 @@ function DarkyUI:CreateWindow(config)
                     )
 
                 AddStroke(
-                    box,
+                    Box,
                     COLORS.Border,
                     1
                 )
@@ -3372,10 +3820,10 @@ function DarkyUI:CreateWindow(config)
                     New(
                         "TextBox",
                         {
-                            Parent = box,
+                            Parent =
+                                Box,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -3410,8 +3858,7 @@ function DarkyUI:CreateWindow(config)
                             Font =
                                 Enum.Font.Gotham,
 
-                            ClearTextOnFocus =
-                                false,
+                            ClearTextOnFocus = false,
 
                             TextXAlignment =
                                 Enum.TextXAlignment.Left,
@@ -3422,6 +3869,7 @@ function DarkyUI:CreateWindow(config)
 
                 TextBox.FocusLost:Connect(
                     function(enterPressed)
+
                         if typeof(
                             inputConfig.Callback
                         ) == "function" then
@@ -3440,14 +3888,18 @@ function DarkyUI:CreateWindow(config)
                 end
 
                 function Input:SetValue(value)
+
                     TextBox.Text =
                         tostring(
                             value or ""
                         )
                 end
 
-                Input.Root = root
-                Input.TextBox = TextBox
+                Input.Root =
+                    root
+
+                Input.TextBox =
+                    TextBox
 
                 RegisterElement(
                     root,
@@ -3458,13 +3910,14 @@ function DarkyUI:CreateWindow(config)
                 return Input
             end
 
-            --==================================================
+            --============================================
             -- DROPDOWN
-            --==================================================
+            --============================================
 
             function Section:CreateDropdown(
                 dropdownConfig
             )
+
                 dropdownConfig =
                     dropdownConfig or {}
 
@@ -3472,15 +3925,15 @@ function DarkyUI:CreateWindow(config)
 
                 local title =
                     dropdownConfig.Title
-                    or "Dropdown"
+                        or "Dropdown"
 
                 local desc =
                     dropdownConfig.Desc
-                    or ""
+                        or ""
 
                 local values =
                     dropdownConfig.Values
-                    or {}
+                        or {}
 
                 local selected =
                     dropdownConfig.Value
@@ -3505,8 +3958,8 @@ function DarkyUI:CreateWindow(config)
                                     0,
                                     0,
                                     desc ~= ""
-                                    and 72
-                                    or 57
+                                        and 72
+                                        or 57
                                 ),
 
                             BackgroundColor3 =
@@ -3529,15 +3982,14 @@ function DarkyUI:CreateWindow(config)
                     {
                         Parent = root,
 
-                        BackgroundTransparency =
-                            1,
+                        BackgroundTransparency = 1,
 
                         Position =
                             UDim2.fromOffset(
                                 11,
                                 desc ~= ""
-                                and 7
-                                or 6
+                                    and 7
+                                    or 6
                             ),
 
                         Size =
@@ -3566,13 +4018,13 @@ function DarkyUI:CreateWindow(config)
                 )
 
                 if desc ~= "" then
+
                     New(
                         "TextLabel",
                         {
                             Parent = root,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -3610,7 +4062,8 @@ function DarkyUI:CreateWindow(config)
                     New(
                         "TextButton",
                         {
-                            Parent = root,
+                            Parent =
+                                root,
 
                             Position =
                                 UDim2.new(
@@ -3631,8 +4084,7 @@ function DarkyUI:CreateWindow(config)
 
                             BorderSizePixel = 0,
 
-                            AutoButtonColor =
-                                false,
+                            AutoButtonColor = false,
 
                             Text = "",
 
@@ -3653,8 +4105,7 @@ function DarkyUI:CreateWindow(config)
                             Parent =
                                 Display,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -3673,8 +4124,7 @@ function DarkyUI:CreateWindow(config)
                             Text =
                                 tostring(
                                     selected
-                                    or
-                                    "Select..."
+                                    or "Select..."
                                 ),
 
                             TextColor3 =
@@ -3711,6 +4161,7 @@ function DarkyUI:CreateWindow(config)
                 local Overlay = nil
 
                 local function CloseDropdown()
+
                     if not Overlay then
                         return
                     end
@@ -3720,14 +4171,15 @@ function DarkyUI:CreateWindow(config)
 
                     Overlay = nil
 
-                    local popup =
+                    local Popup =
                         old:FindFirstChild(
                             "Popup"
                         )
 
-                    if popup then
+                    if Popup then
+
                         Tween(
-                            popup,
+                            Popup,
                             TWEEN_FAST,
                             {
                                 Size =
@@ -3742,16 +4194,21 @@ function DarkyUI:CreateWindow(config)
                     task.delay(
                         0.14,
                         function()
+
                             if old then
                                 old:Destroy()
                             end
+
                         end
                     )
                 end
 
                 local function OpenDropdown()
+
                     if Overlay then
+
                         CloseDropdown()
+
                         return
                     end
 
@@ -3777,8 +4234,7 @@ function DarkyUI:CreateWindow(config)
                                 BackgroundTransparency =
                                     0.5,
 
-                                BorderSizePixel =
-                                    0,
+                                BorderSizePixel = 0,
 
                                 ZIndex = 1000,
                             }
@@ -3797,13 +4253,11 @@ function DarkyUI:CreateWindow(config)
                                         1
                                     ),
 
-                                BackgroundTransparency =
-                                    1,
+                                BackgroundTransparency = 1,
 
                                 Text = "",
 
-                                AutoButtonColor =
-                                    false,
+                                AutoButtonColor = false,
 
                                 ZIndex = 1000,
                             }
@@ -3840,8 +4294,7 @@ function DarkyUI:CreateWindow(config)
                                 BackgroundColor3 =
                                     COLORS.Background,
 
-                                BorderSizePixel =
-                                    0,
+                                BorderSizePixel = 0,
 
                                 ZIndex = 1002,
                             }
@@ -3855,11 +4308,16 @@ function DarkyUI:CreateWindow(config)
 
                     Outside.MouseButton1Click:Connect(
                         function()
+
                             CloseDropdown()
+
                         end
                     )
 
+                    ----------------------------------------
                     -- HEADER
+                    ----------------------------------------
+
                     local Header =
                         New(
                             "Frame",
@@ -3878,8 +4336,7 @@ function DarkyUI:CreateWindow(config)
                                 BackgroundColor3 =
                                     COLORS.Background2,
 
-                                BorderSizePixel =
-                                    0,
+                                BorderSizePixel = 0,
 
                                 ZIndex = 1003,
                             }
@@ -3891,8 +4348,7 @@ function DarkyUI:CreateWindow(config)
                             Parent =
                                 Header,
 
-                            BackgroundTransparency =
-                                1,
+                            BackgroundTransparency = 1,
 
                             Position =
                                 UDim2.fromOffset(
@@ -3946,13 +4402,11 @@ function DarkyUI:CreateWindow(config)
                                         36
                                     ),
 
-                                BackgroundTransparency =
-                                    1,
+                                BackgroundTransparency = 1,
+
+                                AutoButtonColor = false,
 
                                 Text = "",
-
-                                AutoButtonColor =
-                                    false,
 
                                 ZIndex = 1005,
                             }
@@ -3973,17 +4427,23 @@ function DarkyUI:CreateWindow(config)
                         )
 
                     if ModalCloseIcon then
+
                         ModalCloseIcon.ImageColor3 =
                             COLORS.Danger
                     end
 
                     ModalClose.MouseButton1Click:Connect(
                         function()
+
                             CloseDropdown()
+
                         end
                     )
 
+                    ----------------------------------------
                     -- SEARCH
+                    ----------------------------------------
+
                     local SearchFrame =
                         New(
                             "Frame",
@@ -4008,8 +4468,7 @@ function DarkyUI:CreateWindow(config)
                                 BackgroundColor3 =
                                     COLORS.Panel,
 
-                                BorderSizePixel =
-                                    0,
+                                BorderSizePixel = 0,
 
                                 ZIndex = 1003,
                             }
@@ -4039,8 +4498,7 @@ function DarkyUI:CreateWindow(config)
                                 Parent =
                                     SearchFrame,
 
-                                BackgroundTransparency =
-                                    1,
+                                BackgroundTransparency = 1,
 
                                 Position =
                                     UDim2.fromOffset(
@@ -4072,8 +4530,7 @@ function DarkyUI:CreateWindow(config)
                                 Font =
                                     Enum.Font.Gotham,
 
-                                ClearTextOnFocus =
-                                    false,
+                                ClearTextOnFocus = false,
 
                                 TextXAlignment =
                                     Enum.TextXAlignment.Left,
@@ -4082,7 +4539,10 @@ function DarkyUI:CreateWindow(config)
                             }
                         )
 
+                    ----------------------------------------
                     -- OPTIONS
+                    ----------------------------------------
+
                     local OptionList =
                         New(
                             "ScrollingFrame",
@@ -4104,14 +4564,11 @@ function DarkyUI:CreateWindow(config)
                                         160
                                     ),
 
-                                BackgroundTransparency =
-                                    1,
+                                BackgroundTransparency = 1,
 
-                                BorderSizePixel =
-                                    0,
+                                BorderSizePixel = 0,
 
-                                ScrollBarThickness =
-                                    4,
+                                ScrollBarThickness = 4,
 
                                 ScrollBarImageColor3 =
                                     COLORS.Border,
@@ -4181,8 +4638,7 @@ function DarkyUI:CreateWindow(config)
                                         20
                                     ),
 
-                                BackgroundTransparency =
-                                    1,
+                                BackgroundTransparency = 1,
 
                                 Text =
                                     tostring(
@@ -4205,15 +4661,19 @@ function DarkyUI:CreateWindow(config)
                             }
                         )
 
+                    ----------------------------------------
+                    -- SELECT
+                    ----------------------------------------
+
                     local function SelectOption(
                         value
                     )
-                        selected = value
+
+                        selected =
+                            value
 
                         SelectedLabel.Text =
-                            tostring(
-                                value
-                            )
+                            tostring(value)
 
                         CloseDropdown()
 
@@ -4228,13 +4688,20 @@ function DarkyUI:CreateWindow(config)
                         end
                     end
 
+                    ----------------------------------------
+                    -- RENDER
+                    ----------------------------------------
+
                     local function RenderOptions()
+
                         for _, child in ipairs(
                             OptionList:GetChildren()
                         ) do
+
                             if child:IsA(
                                 "TextButton"
                             ) then
+
                                 child:Destroy()
                             end
                         end
@@ -4245,6 +4712,7 @@ function DarkyUI:CreateWindow(config)
                         for index, value in ipairs(
                             values
                         ) do
+
                             local text =
                                 tostring(
                                     value
@@ -4259,6 +4727,7 @@ function DarkyUI:CreateWindow(config)
                                 ) ~= nil
 
                             if matches then
+
                                 local Option =
                                     New(
                                         "TextButton",
@@ -4277,11 +4746,9 @@ function DarkyUI:CreateWindow(config)
                                             BackgroundColor3 =
                                                 COLORS.Panel,
 
-                                            BorderSizePixel =
-                                                0,
+                                            BorderSizePixel = 0,
 
-                                            AutoButtonColor =
-                                                false,
+                                            AutoButtonColor = false,
 
                                             Text = "",
 
@@ -4304,8 +4771,7 @@ function DarkyUI:CreateWindow(config)
                                         Parent =
                                             Option,
 
-                                        BackgroundTransparency =
-                                            1,
+                                        BackgroundTransparency = 1,
 
                                         Position =
                                             UDim2.fromOffset(
@@ -4353,9 +4819,7 @@ function DarkyUI:CreateWindow(config)
 
                                 if tostring(value)
                                     ==
-                                    tostring(
-                                        selected
-                                    ) then
+                                    tostring(selected) then
 
                                     CreateIcon(
                                         Option,
@@ -4373,6 +4837,7 @@ function DarkyUI:CreateWindow(config)
 
                                 Option.MouseEnter:Connect(
                                     function()
+
                                         Tween(
                                             Option,
                                             TWEEN_FAST,
@@ -4386,6 +4851,7 @@ function DarkyUI:CreateWindow(config)
 
                                 Option.MouseLeave:Connect(
                                     function()
+
                                         Tween(
                                             Option,
                                             TWEEN_FAST,
@@ -4399,6 +4865,7 @@ function DarkyUI:CreateWindow(config)
 
                                 Option.MouseButton1Click:Connect(
                                     function()
+
                                         SelectOption(
                                             value
                                         )
@@ -4406,13 +4873,21 @@ function DarkyUI:CreateWindow(config)
                                 )
                             end
                         end
+
+                        CountLabel.Text =
+                            tostring(
+                                #values
+                            )
+                            .. " options"
                     end
 
                     ModalSearch:GetPropertyChangedSignal(
                         "Text"
                     ):Connect(
                         function()
+
                             RenderOptions()
+
                         end
                     )
 
@@ -4433,29 +4908,35 @@ function DarkyUI:CreateWindow(config)
 
                 Display.MouseButton1Click:Connect(
                     function()
+
                         OpenDropdown()
+
                     end
                 )
 
-                --==================================================
+                --============================================
                 -- DROPDOWN METHODS
-                --==================================================
+                --============================================
 
                 function Dropdown:Refresh(
                     newValues
                 )
+
                     if type(newValues)
                         ~= "table" then
                         return
                     end
 
-                    values = newValues
+                    values =
+                        newValues
 
-                    local found = false
+                    local found =
+                        false
 
                     for _, value in ipairs(
                         values
                     ) do
+
                         if tostring(value)
                             ==
                             tostring(
@@ -4463,11 +4944,13 @@ function DarkyUI:CreateWindow(config)
                             ) then
 
                             found = true
+
                             break
                         end
                     end
 
                     if not found then
+
                         selected =
                             values[1]
                     end
@@ -4475,7 +4958,8 @@ function DarkyUI:CreateWindow(config)
                     SelectedLabel.Text =
                         tostring(
                             selected
-                            or "Select..."
+                                or
+                                "Select..."
                         )
                 end
 
@@ -4483,7 +4967,9 @@ function DarkyUI:CreateWindow(config)
                     value,
                     callCallback
                 )
-                    selected = value
+
+                    selected =
+                        value
 
                     SelectedLabel.Text =
                         tostring(value)
@@ -4508,7 +4994,8 @@ function DarkyUI:CreateWindow(config)
                     return values
                 end
 
-                Dropdown.Root = root
+                Dropdown.Root =
+                    root
 
                 RegisterElement(
                     root,
@@ -4527,7 +5014,6 @@ function DarkyUI:CreateWindow(config)
             Tab
         )
 
-        -- First tab automatically selected.
         if not Window.ActiveTab then
             Tab:Select()
         end
@@ -4535,9 +5021,9 @@ function DarkyUI:CreateWindow(config)
         return Tab
     end
 
-    --==================================================
+    --====================================================
     -- OPEN ANIMATION
-    --==================================================
+    --====================================================
 
     Main.Size =
         UDim2.fromOffset(
@@ -4550,14 +5036,1362 @@ function DarkyUI:CreateWindow(config)
         TWEEN_MED,
         {
             Size =
-                UDim2.fromOffset(
-                    550,
-                    340
-                )
+                DEFAULT_WINDOW_SIZE
         }
     )
 
     return Window
 end
+
+--========================================================
+-- KEY SYSTEM
+--========================================================
+
+function DarkyUI:CreateKeySystem(config)
+
+    config = config or {}
+
+    local KeySystem = {}
+
+    KeySystem.Destroyed = false
+    KeySystem.Cancelled = false
+
+    local title =
+        config.Title
+            or "Access Required"
+
+    local note =
+        config.Note
+            or ""
+
+    local keyURL =
+        config.URL
+            or ""
+
+    local saveKey =
+        config.SaveKey == true
+
+    local thumbnail =
+        config.Thumbnail
+            or {}
+
+    local keyFile =
+        "DarkyUI_Key.txt"
+
+    --====================================================
+    -- GUI
+    --====================================================
+
+    local ScreenGui =
+        CoreGui:FindFirstChild(
+            UI_NAME
+        )
+
+    if not ScreenGui then
+
+        ScreenGui =
+            New(
+                "ScreenGui",
+                {
+                    Name =
+                        UI_NAME,
+
+                    Parent =
+                        CoreGui,
+
+                    IgnoreGuiInset = true,
+
+                    ResetOnSpawn = false,
+
+                    ZIndexBehavior =
+                        Enum.ZIndexBehavior.Sibling,
+
+                    DisplayOrder =
+                        999999,
+                }
+            )
+    end
+
+    local Overlay =
+        New(
+            "Frame",
+            {
+                Parent =
+                    ScreenGui,
+
+                Name =
+                    "KeySystem",
+
+                Size =
+                    UDim2.fromScale(
+                        1,
+                        1
+                    ),
+
+                BackgroundColor3 =
+                    COLORS.Black,
+
+                BackgroundTransparency =
+                    0.35,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 2000,
+            }
+        )
+
+    --====================================================
+    -- MAIN
+    --====================================================
+
+    local Main =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Overlay,
+
+                Name =
+                    "Main",
+
+                AnchorPoint =
+                    Vector2.new(
+                        0.5,
+                        0.5
+                    ),
+
+                Position =
+                    UDim2.fromScale(
+                        0.5,
+                        0.5
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        480,
+                        260
+                    ),
+
+                BackgroundColor3 =
+                    COLORS.Background,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 2001,
+            }
+        )
+
+    AddStroke(
+        Main,
+        COLORS.Border,
+        1
+    )
+
+    --====================================================
+    -- HEADER
+    --====================================================
+
+    local Header =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Main,
+
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        0,
+                        56
+                    ),
+
+                BackgroundColor3 =
+                    COLORS.Background2,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 2002,
+            }
+        )
+
+    AddStroke(
+        Header,
+        COLORS.Border,
+        1
+    )
+
+    New(
+        "TextLabel",
+        {
+            Parent =
+                Header,
+
+            BackgroundTransparency = 1,
+
+            Position =
+                UDim2.fromOffset(
+                    15,
+                    7
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -30,
+                    0,
+                    22
+                ),
+
+            Text = title,
+
+            TextColor3 =
+                COLORS.Text,
+
+            TextSize = 15,
+
+            Font =
+                Enum.Font.GothamBold,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
+
+            ZIndex = 2003,
+        }
+    )
+
+    New(
+        "TextLabel",
+        {
+            Parent =
+                Header,
+
+            BackgroundTransparency = 1,
+
+            Position =
+                UDim2.fromOffset(
+                    15,
+                    30
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -30,
+                    0,
+                    17
+                ),
+
+            Text = note,
+
+            TextColor3 =
+                COLORS.SubText,
+
+            TextSize = 9,
+
+            Font =
+                Enum.Font.Gotham,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
+
+            TextTruncate =
+                Enum.TextTruncate.AtEnd,
+
+            ZIndex = 2003,
+        }
+    )
+
+    --====================================================
+    -- CONTENT
+    --====================================================
+
+    local Content =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Main,
+
+                Position =
+                    UDim2.fromOffset(
+                        0,
+                        56
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        0,
+                        1,
+                        -56
+                    ),
+
+                BackgroundTransparency = 1,
+
+                ZIndex = 2002,
+            }
+        )
+
+    --====================================================
+    -- LEFT THUMBNAIL
+    --====================================================
+
+    local ThumbnailFrame =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Content,
+
+                Position =
+                    UDim2.fromOffset(
+                        13,
+                        14
+                    ),
+
+                Size =
+                    UDim2.fromOffset(
+                        145,
+                        147
+                    ),
+
+                BackgroundColor3 =
+                    COLORS.Panel,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 2003,
+            }
+        )
+
+    AddStroke(
+        ThumbnailFrame,
+        COLORS.Border,
+        1
+    )
+
+    local ThumbnailImage
+
+    if thumbnail.Image then
+
+        ThumbnailImage =
+            New(
+                "ImageLabel",
+                {
+                    Parent =
+                        ThumbnailFrame,
+
+                    Position =
+                        UDim2.fromOffset(
+                            7,
+                            7
+                        ),
+
+                    Size =
+                        UDim2.new(
+                            1,
+                            -14,
+                            0,
+                            105
+                        ),
+
+                    BackgroundColor3 =
+                        COLORS.Panel2,
+
+                    BorderSizePixel = 0,
+
+                    Image =
+                        NormalizeAssetId(
+                            tostring(
+                                thumbnail.Image
+                            )
+                        ),
+
+                    ScaleType =
+                        Enum.ScaleType.Crop,
+
+                    ZIndex = 2004,
+                }
+            )
+
+    else
+
+        ThumbnailImage =
+            New(
+                "Frame",
+                {
+                    Parent =
+                        ThumbnailFrame,
+
+                    Position =
+                        UDim2.fromOffset(
+                            7,
+                            7
+                        ),
+
+                    Size =
+                        UDim2.new(
+                            1,
+                            -14,
+                            0,
+                            105
+                        ),
+
+                    BackgroundColor3 =
+                        COLORS.Panel2,
+
+                    BorderSizePixel = 0,
+
+                    ZIndex = 2004,
+                }
+            )
+    end
+
+    AddStroke(
+        ThumbnailImage,
+        COLORS.Border,
+        1
+    )
+
+    New(
+        "TextLabel",
+        {
+            Parent =
+                ThumbnailFrame,
+
+            BackgroundTransparency = 1,
+
+            Position =
+                UDim2.fromOffset(
+                    8,
+                    117
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -16,
+                    0,
+                    22
+                ),
+
+            Text =
+                thumbnail.Title
+                    or "Premium Member",
+
+            TextColor3 =
+                COLORS.Text,
+
+            TextSize = 10,
+
+            Font =
+                Enum.Font.GothamBold,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Center,
+
+            TextTruncate =
+                Enum.TextTruncate.AtEnd,
+
+            ZIndex = 2005,
+        }
+    )
+
+    --====================================================
+    -- RIGHT KEY AREA
+    --====================================================
+
+    local KeyArea =
+        New(
+            "Frame",
+            {
+                Parent =
+                    Content,
+
+                Position =
+                    UDim2.fromOffset(
+                        170,
+                        14
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -183,
+                        0,
+                        147
+                    ),
+
+                BackgroundColor3 =
+                    COLORS.Panel,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 2003,
+            }
+        )
+
+    AddStroke(
+        KeyArea,
+        COLORS.Border,
+        1
+    )
+
+    New(
+        "TextLabel",
+        {
+            Parent =
+                KeyArea,
+
+            BackgroundTransparency = 1,
+
+            Position =
+                UDim2.fromOffset(
+                    11,
+                    10
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -22,
+                    0,
+                    20
+                ),
+
+            Text =
+                "Enter your access key",
+
+            TextColor3 =
+                COLORS.Text,
+
+            TextSize = 11,
+
+            Font =
+                Enum.Font.GothamBold,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
+
+            ZIndex = 2004,
+        }
+    )
+
+    New(
+        "TextLabel",
+        {
+            Parent =
+                KeyArea,
+
+            BackgroundTransparency = 1,
+
+            Position =
+                UDim2.fromOffset(
+                    11,
+                    31
+                ),
+
+            Size =
+                UDim2.new(
+                    1,
+                    -22,
+                    0,
+                    17
+                ),
+
+            Text =
+                "Paste your key below to continue.",
+
+            TextColor3 =
+                COLORS.SubText,
+
+            TextSize = 9,
+
+            Font =
+                Enum.Font.Gotham,
+
+            TextXAlignment =
+                Enum.TextXAlignment.Left,
+
+            ZIndex = 2004,
+        }
+    )
+
+    local InputFrame =
+        New(
+            "Frame",
+            {
+                Parent =
+                    KeyArea,
+
+                Position =
+                    UDim2.fromOffset(
+                        10,
+                        58
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -20,
+                        0,
+                        38
+                    ),
+
+                BackgroundColor3 =
+                    COLORS.Panel2,
+
+                BorderSizePixel = 0,
+
+                ZIndex = 2005,
+            }
+        )
+
+    AddStroke(
+        InputFrame,
+        COLORS.Border,
+        1
+    )
+
+    CreateIcon(
+        InputFrame,
+        "key-round",
+        16,
+        UDim2.fromOffset(
+            10,
+            11
+        ),
+        2006
+    )
+
+    local KeyInput =
+        New(
+            "TextBox",
+            {
+                Parent =
+                    InputFrame,
+
+                BackgroundTransparency = 1,
+
+                Position =
+                    UDim2.fromOffset(
+                        34,
+                        0
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -42,
+                        1,
+                        0
+                    ),
+
+                PlaceholderText =
+                    "Enter key...",
+
+                PlaceholderColor3 =
+                    COLORS.Muted,
+
+                Text = "",
+
+                TextColor3 =
+                    COLORS.Text,
+
+                TextSize = 10,
+
+                Font =
+                    Enum.Font.Gotham,
+
+                ClearTextOnFocus = false,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Left,
+
+                ZIndex = 2006,
+            }
+        )
+
+    --====================================================
+    -- STATUS
+    --====================================================
+
+    local StatusLabel =
+        New(
+            "TextLabel",
+            {
+                Parent =
+                    Content,
+
+                Position =
+                    UDim2.fromOffset(
+                        13,
+                        225
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -26,
+                        0,
+                        20
+                    ),
+
+                BackgroundTransparency = 1,
+
+                Text = "",
+
+                TextColor3 =
+                    COLORS.SubText,
+
+                TextSize = 9,
+
+                Font =
+                    Enum.Font.Gotham,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Center,
+
+                ZIndex = 2006,
+            }
+        )
+
+    --====================================================
+    -- BUTTON MAKER
+    --====================================================
+
+    local function CreateKeyButton(
+        parent,
+        position,
+        size,
+        background,
+        icon,
+        text
+    )
+
+        local button =
+            New(
+                "TextButton",
+                {
+                    Parent =
+                        parent,
+
+                    Position =
+                        position,
+
+                    Size =
+                        size,
+
+                    BackgroundColor3 =
+                        background,
+
+                    BorderSizePixel = 0,
+
+                    AutoButtonColor = false,
+
+                    Text = "",
+
+                    ZIndex = 2005,
+                }
+            )
+
+        AddStroke(
+            button,
+            COLORS.Border,
+            1
+        )
+
+        local iconObject =
+            CreateIcon(
+                button,
+                icon,
+                16,
+                UDim2.fromOffset(
+                    13,
+                    12
+                ),
+                2006
+            )
+
+        if iconObject
+            and icon == "x" then
+
+            iconObject.ImageColor3 =
+                COLORS.Danger
+        end
+
+        New(
+            "TextLabel",
+            {
+                Parent =
+                    button,
+
+                BackgroundTransparency = 1,
+
+                Position =
+                    UDim2.fromOffset(
+                        37,
+                        0
+                    ),
+
+                Size =
+                    UDim2.new(
+                        1,
+                        -42,
+                        1,
+                        0
+                    ),
+
+                Text = text,
+
+                TextColor3 =
+                    background ==
+                    COLORS.Accent
+                    and COLORS.White
+                    or COLORS.Text,
+
+                TextSize = 10,
+
+                Font =
+                    background ==
+                    COLORS.Accent
+                    and Enum.Font.GothamBold
+                    or Enum.Font.GothamMedium,
+
+                TextXAlignment =
+                    Enum.TextXAlignment.Left,
+
+                ZIndex = 2006,
+            }
+        )
+
+        return button
+    end
+
+    --====================================================
+    -- BUTTONS
+    --====================================================
+
+    local CancelButton =
+        CreateKeyButton(
+            Content,
+
+            UDim2.fromOffset(
+                13,
+                176
+            ),
+
+            UDim2.fromOffset(
+                108,
+                40
+            ),
+
+            COLORS.Panel,
+
+            "x",
+
+            "Cancel"
+        )
+
+    local GetKeyButton =
+        CreateKeyButton(
+            Content,
+
+            UDim2.new(
+                0.5,
+                -54,
+                0,
+                176
+            ),
+
+            UDim2.fromOffset(
+                108,
+                40
+            ),
+
+            COLORS.Panel,
+
+            "key",
+
+            "Get Key"
+        )
+
+    local SubmitButton =
+        CreateKeyButton(
+            Content,
+
+            UDim2.new(
+                1,
+                -121,
+                0,
+                176
+            ),
+
+            UDim2.fromOffset(
+                108,
+                40
+            ),
+
+            COLORS.Accent,
+
+            "arrow-right",
+
+            "Submit"
+        )
+
+    --====================================================
+    -- FILE SYSTEM
+    --====================================================
+
+    local function ReadSavedKey()
+
+        if not saveKey then
+            return nil
+        end
+
+        if typeof(isfile)
+            ~= "function"
+            or typeof(readfile)
+            ~= "function" then
+
+            return nil
+        end
+
+        local exists = false
+
+        pcall(
+            function()
+
+                exists =
+                    isfile(
+                        keyFile
+                    )
+
+            end
+        )
+
+        if not exists then
+            return nil
+        end
+
+        local saved
+
+        pcall(
+            function()
+
+                saved =
+                    readfile(
+                        keyFile
+                    )
+
+            end
+        )
+
+        if saved and saved ~= "" then
+            return saved
+        end
+
+        return nil
+    end
+
+    local function SaveKey(key)
+
+        if not saveKey then
+            return
+        end
+
+        if typeof(writefile)
+            ~= "function" then
+            return
+        end
+
+        pcall(
+            function()
+
+                writefile(
+                    keyFile,
+                    key
+                )
+
+            end
+        )
+    end
+
+    --====================================================
+    -- VALIDATE
+    --====================================================
+
+    local function Validate(key)
+
+        if typeof(
+            config.KeyValidator
+        ) ~= "function" then
+
+            return false
+        end
+
+        local success, result =
+            pcall(
+                config.KeyValidator,
+                key
+            )
+
+        return success
+            and result == true
+    end
+
+    --====================================================
+    -- CONTINUE
+    --====================================================
+
+    local function Continue()
+
+        KeySystem.Destroyed =
+            true
+
+        if Overlay then
+            Overlay:Destroy()
+        end
+
+        return true
+    end
+
+    --====================================================
+    -- SUBMIT
+    --====================================================
+
+    local submitting = false
+
+    local function Submit()
+
+        if submitting then
+            return
+        end
+
+        submitting = true
+
+        local key =
+            KeyInput.Text
+
+        if key == "" then
+
+            StatusLabel.Text =
+                "Please enter a key."
+
+            StatusLabel.TextColor3 =
+                COLORS.Warning
+
+            submitting = false
+
+            return
+        end
+
+        StatusLabel.Text =
+            "Checking key..."
+
+        StatusLabel.TextColor3 =
+            COLORS.SubText
+
+        local valid =
+            Validate(key)
+
+        if valid then
+
+            StatusLabel.Text =
+                "Key accepted!"
+
+            StatusLabel.TextColor3 =
+                COLORS.Accent2
+
+            SaveKey(key)
+
+            task.delay(
+                0.3,
+                function()
+
+                    if Overlay
+                        and Overlay.Parent then
+
+                        Continue()
+                    end
+                end
+            )
+
+        else
+
+            StatusLabel.Text =
+                "Invalid key."
+
+            StatusLabel.TextColor3 =
+                COLORS.Danger
+        end
+
+        submitting = false
+    end
+
+    --====================================================
+    -- CANCEL
+    --====================================================
+
+    CancelButton.MouseButton1Click:Connect(
+        function()
+
+            KeySystem.Cancelled =
+                true
+
+            KeySystem.Destroyed =
+                true
+
+            Overlay:Destroy()
+        end
+    )
+
+    --====================================================
+    -- GET KEY / COPY
+    --====================================================
+
+    GetKeyButton.MouseButton1Click:Connect(
+        function()
+
+            if keyURL == "" then
+
+                StatusLabel.Text =
+                    "Key URL is not configured."
+
+                StatusLabel.TextColor3 =
+                    COLORS.Danger
+
+                return
+            end
+
+            local copied = false
+
+            local clipboardMethods = {
+
+                function()
+                    setclipboard(
+                        keyURL
+                    )
+                end,
+
+                function()
+                    toclipboard(
+                        keyURL
+                    )
+                end,
+
+                function()
+
+                    if syn
+                        and syn.clipboard then
+
+                        syn.clipboard =
+                            keyURL
+                    else
+
+                        error(
+                            "clipboard unavailable"
+                        )
+                    end
+                end,
+            }
+
+            for _, method in ipairs(
+                clipboardMethods
+            ) do
+
+                local success =
+                    pcall(method)
+
+                if success then
+
+                    copied = true
+
+                    break
+                end
+            end
+
+            if copied then
+
+                StatusLabel.Text =
+                    "Key URL copied."
+
+                StatusLabel.TextColor3 =
+                    COLORS.Accent2
+
+            else
+
+                StatusLabel.Text =
+                    keyURL
+
+                StatusLabel.TextColor3 =
+                    COLORS.SubText
+            end
+        end
+    )
+
+    --====================================================
+    -- SUBMIT CLICK
+    --====================================================
+
+    SubmitButton.MouseButton1Click:Connect(
+        Submit
+    )
+
+    KeyInput.FocusLost:Connect(
+        function(enterPressed)
+
+            if enterPressed then
+                Submit()
+            end
+        end
+    )
+
+    --====================================================
+    -- BUTTON HOVER
+    --====================================================
+
+    local function Hover(
+        button,
+        normalColor,
+        hoverColor
+    )
+
+        button.MouseEnter:Connect(
+            function()
+
+                Tween(
+                    button,
+                    TWEEN_FAST,
+                    {
+                        BackgroundColor3 =
+                            hoverColor
+                    }
+                )
+            end
+        )
+
+        button.MouseLeave:Connect(
+            function()
+
+                Tween(
+                    button,
+                    TWEEN_FAST,
+                    {
+                        BackgroundColor3 =
+                            normalColor
+                    }
+                )
+            end
+        )
+    end
+
+    Hover(
+        CancelButton,
+        COLORS.Panel,
+        COLORS.Panel2
+    )
+
+    Hover(
+        GetKeyButton,
+        COLORS.Panel,
+        COLORS.Panel2
+    )
+
+    Hover(
+        SubmitButton,
+        COLORS.Accent,
+        COLORS.Accent2
+    )
+
+    --====================================================
+    -- SAVED KEY
+    --====================================================
+
+    local savedKey =
+        ReadSavedKey()
+
+    if savedKey then
+
+        KeyInput.Text =
+            savedKey
+
+        task.spawn(
+            function()
+
+                if Validate(
+                    savedKey
+                ) then
+
+                    Continue()
+                end
+
+            end
+        )
+    end
+
+    --====================================================
+    -- OPEN ANIMATION
+    --====================================================
+
+    Main.Size =
+        UDim2.fromOffset(
+            480,
+            0
+        )
+
+    Tween(
+        Main,
+        TWEEN_MED,
+        {
+            Size =
+                UDim2.fromOffset(
+                    480,
+                    260
+                )
+        }
+    )
+
+    --====================================================
+    -- METHODS
+    --====================================================
+
+    function KeySystem:GetKey()
+        return KeyInput.Text
+    end
+
+    function KeySystem:SetKey(key)
+        KeyInput.Text =
+            tostring(
+                key or ""
+            )
+    end
+
+    function KeySystem:Submit()
+        Submit()
+    end
+
+    function KeySystem:Destroy()
+
+        if Overlay then
+            Overlay:Destroy()
+        end
+
+        KeySystem.Destroyed =
+            true
+    end
+
+    function KeySystem:IsDestroyed()
+        return KeySystem.Destroyed
+            == true
+    end
+
+    return KeySystem
+end
+
+--========================================================
+-- RETURN
+--========================================================
 
 return DarkyUI
