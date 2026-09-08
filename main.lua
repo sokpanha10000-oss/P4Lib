@@ -2050,6 +2050,8 @@ function DarkyUI:CreateWindow(config)
         }
     )
 
+    Corner(tabs, 9)
+
     Stroke(
         tabs,
         COLORS.Border,
@@ -2537,6 +2539,8 @@ function DarkyUI:CreateWindow(config)
             }
         )
 
+        Corner(tabButton, 8)
+
         Stroke(
             tabButton,
             COLORS.Border,
@@ -2728,6 +2732,8 @@ function DarkyUI:CreateWindow(config)
                 }
             )
 
+            Corner(sectionFrame, 9)
+
             Stroke(
                 sectionFrame,
                 COLORS.Border,
@@ -2843,6 +2849,8 @@ function DarkyUI:CreateWindow(config)
                         ZIndex = 15,
                     }
                 )
+
+                Corner(root, 8)
 
                 Stroke(
                     root,
@@ -3001,6 +3009,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                Corner(root, 8)
+
                 Stroke(
                     root,
                     COLORS.Border,
@@ -3059,6 +3069,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                Corner(switch, 8)
+
                 Stroke(
                     switch,
                     COLORS.Border,
@@ -3076,6 +3088,8 @@ function DarkyUI:CreateWindow(config)
                         ZIndex = 20,
                     }
                 )
+
+                Corner(knob, 8)
 
                 local function updateToggle(_, colors)
                     if not root.Parent then
@@ -3215,6 +3229,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                Corner(root, 8)
+
                 Stroke(
                     root,
                     COLORS.Border,
@@ -3298,6 +3314,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                Corner(track, 6)
+
                 Stroke(
                     track,
                     COLORS.Border,
@@ -3315,6 +3333,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                Corner(fill, 6)
+
                 local knob = New(
                     "Frame",
                     {
@@ -3327,6 +3347,8 @@ function DarkyUI:CreateWindow(config)
                         ZIndex = 20,
                     }
                 )
+
+                Corner(knob, 8)
 
                 local drag = New(
                     "TextButton",
@@ -3547,6 +3569,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                Corner(root, 8)
+
                 Stroke(
                     root,
                     COLORS.Border,
@@ -3598,6 +3622,8 @@ function DarkyUI:CreateWindow(config)
                         ZIndex = 18,
                     }
                 )
+
+                Corner(box, 8)
 
                 Stroke(
                     box,
@@ -3698,6 +3724,8 @@ function DarkyUI:CreateWindow(config)
                     }
                 )
 
+                Corner(root, 8)
+
                 Stroke(
                     root,
                     COLORS.Border,
@@ -3754,6 +3782,8 @@ function DarkyUI:CreateWindow(config)
                         ZIndex = 20,
                     }
                 )
+
+                Corner(display, 8)
 
                 Stroke(
                     display,
@@ -3851,6 +3881,8 @@ function DarkyUI:CreateWindow(config)
                             ZIndex = 1002,
                         }
                     )
+
+                    Corner(popup, 10)
 
                     Stroke(
                         popup,
@@ -4070,6 +4102,8 @@ function DarkyUI:CreateWindow(config)
                                         ZIndex = 1005,
                                     }
                                 )
+
+                                Corner(option, 7)
 
                                 Stroke(
                                     option,
