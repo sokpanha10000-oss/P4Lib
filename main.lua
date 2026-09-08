@@ -193,6 +193,58 @@ local function Corner(parent, radius)
     })
 end
 
+local function CreateAura(parent, position, size, radius, zIndex)
+    local aura = New("Frame", {
+        Parent = parent,
+        Name = "BlurAura",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = position,
+        Size = size,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = zIndex or 1,
+    })
+
+    local layers = {
+        {Scale = 1.00, Transparency = 0.89, Expand = 0},
+        {Scale = 1.03, Transparency = 0.94, Expand = 8},
+        {Scale = 1.06, Transparency = 0.97, Expand = 16},
+    }
+
+    for index, info in ipairs(layers) do
+        local layer = New("Frame", {
+            Parent = aura,
+            Name = "DarkyUIAuraLayer" .. index,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.new(
+                1, info.Expand,
+                1, info.Expand
+            ),
+            BackgroundColor3 = CurrentTheme().Accent,
+            BackgroundTransparency = info.Transparency,
+            BorderSizePixel = 0,
+            ZIndex = aura.ZIndex + 1,
+        })
+
+        Corner(layer, radius + 8 + (index * 2))
+    end
+
+    return aura
+end
+
+local function UpdateAuraColor(aura, color)
+    if not aura or not aura.Parent then
+        return
+    end
+
+    for _, child in ipairs(aura:GetChildren()) do
+        if child:IsA("Frame") and child.Name:match("^DarkyUIAuraLayer") then
+            child.BackgroundColor3 = color
+        end
+    end
+end
+
 local function ApplyOuterBorder(object, enabled, theme)
     local stroke = object:FindFirstChild("DarkyUIOuterBorder")
 
@@ -835,18 +887,13 @@ local function MakeKeySystem(config)
 
     local aura
     if useBlur then
-        aura = New("Frame", {
-            Parent = overlay,
-            Name = "BlurAura",
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.fromScale(0.5, 0.5),
-            Size = UDim2.fromOffset(524, 304),
-            BackgroundColor3 = CurrentTheme().Accent,
-            BackgroundTransparency = 0.86,
-            BorderSizePixel = 0,
-            ZIndex = 1999,
-        })
-        Corner(aura, CORNER_RADIUS + 8)
+        aura = CreateAura(
+            overlay,
+            UDim2.fromScale(0.5, 0.5),
+            UDim2.fromOffset(524, 304),
+            CORNER_RADIUS,
+            1999
+        )
     end
 
     local main = New(
@@ -1235,7 +1282,7 @@ local function MakeKeySystem(config)
         ApplyOuterBorder(main, useBorder, colors)
 
         if aura and aura.Parent then
-            aura.BackgroundColor3 = colors.Accent
+            UpdateAuraColor(aura, colors.Accent)
         end
 
         submitButton.BackgroundColor3 = colors.Accent
@@ -1663,25 +1710,16 @@ function DarkyUI:CreateWindow(config)
     local aura
 
     if Window.Blur then
-        aura = New(
-            "Frame",
-            {
-                Parent = gui,
-                Name = "BlurAura",
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.fromScale(0.5, 0.5),
-                Size = UDim2.fromOffset(
-                    WINDOW_WIDTH + 24,
-                    WINDOW_HEIGHT + 24
-                ),
-                BackgroundColor3 = CurrentTheme().Accent,
-                BackgroundTransparency = 0.86,
-                BorderSizePixel = 0,
-                Visible = not Window._KeyLocked,
-                ZIndex = 1,
-            }
+        aura = CreateAura(
+            gui,
+            UDim2.fromScale(0.5, 0.5),
+            UDim2.fromOffset(
+                WINDOW_WIDTH + 24,
+                WINDOW_HEIGHT + 24
+            ),
+            CORNER_RADIUS
         )
-        Corner(aura, CORNER_RADIUS + 8)
+        aura.Visible = not Window._KeyLocked
     end
 
     local main = New(
@@ -2202,7 +2240,7 @@ function DarkyUI:CreateWindow(config)
         )
 
         if aura and aura.Parent then
-            aura.BackgroundColor3 = colors.Accent
+            UpdateAuraColor(aura, colors.Accent)
         end
     end)
 
@@ -2352,22 +2390,17 @@ function DarkyUI:CreateWindow(config)
 
         if Window.Blur then
             if not aura then
-                aura = New(
-                    "Frame",
-                    {
-                        Parent = gui,
-                        Name = "BlurAura",
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        Position = main.Position,
-                        Size = UDim2.fromOffset(WINDOW_WIDTH + 24, WINDOW_HEIGHT + 24),
-                        BackgroundColor3 = CurrentTheme().Accent,
-                        BackgroundTransparency = 0.86,
-                        BorderSizePixel = 0,
-                        ZIndex = 1,
-                    }
+                aura = CreateAura(
+                    gui,
+                    main.Position,
+                    UDim2.fromOffset(
+                        WINDOW_WIDTH + 24,
+                        WINDOW_HEIGHT + 24
+                    ),
+                    CORNER_RADIUS
                 )
-                Corner(aura, CORNER_RADIUS + 8)
             end
+            UpdateAuraColor(aura, CurrentTheme().Accent)
             Window.Aura = aura
             aura.Visible = not Window.Minimized and not Window._KeyLocked
         elseif aura then
@@ -3082,14 +3115,14 @@ function DarkyUI:CreateWindow(config)
                     {
                         Parent = switch,
                         Position = UDim2.fromOffset(3, 3),
-                        Size = UDim2.fromOffset(16, 16),
+                        Size = UDim2.fromOffset(18, 14),
                         BackgroundColor3 = COLORS.SubText,
                         BorderSizePixel = 0,
                         ZIndex = 20,
                     }
                 )
 
-                Corner(knob, 8)
+                Corner(knob, 3)
 
                 local function updateToggle(_, colors)
                     if not root.Parent then
@@ -3109,7 +3142,7 @@ function DarkyUI:CreateWindow(config)
                             knob,
                             FAST,
                             {
-                                Position = UDim2.new(1, -19, 0.5, -8),
+                                Position = UDim2.new(1, -21, 0.5, -7),
                                 BackgroundColor3 = COLORS.White,
                             }
                         )
@@ -3341,14 +3374,14 @@ function DarkyUI:CreateWindow(config)
                         Parent = track,
                         AnchorPoint = Vector2.new(0.5, 0.5),
                         Position = UDim2.new(0, 0, 0.5, 0),
-                        Size = UDim2.fromOffset(12, 12),
+                        Size = UDim2.fromOffset(22, 10),
                         BackgroundColor3 = COLORS.White,
                         BorderSizePixel = 0,
                         ZIndex = 20,
                     }
                 )
 
-                Corner(knob, 8)
+                Corner(knob, 3)
 
                 local drag = New(
                     "TextButton",
