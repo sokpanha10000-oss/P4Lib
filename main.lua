@@ -590,9 +590,12 @@ function DarkyUI:Notify(config)
             Size = UDim2.fromOffset(310, 70),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
+            ClipsDescendants = true,
             ZIndex = 3001,
         }
     )
+
+    AddCorner(notification, 12)
 
     Stroke(
         notification,
