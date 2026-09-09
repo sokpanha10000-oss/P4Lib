@@ -394,14 +394,43 @@ local function ResolveIcon(icon)
     return nil
 end
 
-local function Icon(parent, icon, size, position, zIndex)
+--========================================================
+-- THEME
+--========================================================
+-- Declared here (ahead of Icon below) since themed icons need to
+-- register for live theme-change updates.
+
+local function CurrentTheme()
+    return THEMES[DarkyUI.CurrentTheme]
+        or THEMES.BlueSky
+end
+
+local function RegisterTheme(callback)
+    table.insert(
+        DarkyUI._ThemeObjects,
+        callback
+    )
+
+    pcall(function()
+        callback(
+            DarkyUI.CurrentTheme,
+            CurrentTheme()
+        )
+    end)
+end
+
+-- themed: false/nil = static COLORS.Text icon (default, unchanged behavior).
+--         true      = tinted with the current theme's Accent color, and
+--                      automatically re-tints whenever the theme changes.
+--         "Accent2" = same as true, but follows Accent2 instead of Accent.
+local function Icon(parent, icon, size, position, zIndex, themed)
     local asset = ResolveIcon(icon)
 
     if not asset then
         return nil
     end
 
-    return New("ImageLabel", {
+    local image = New("ImageLabel", {
         Parent = parent,
         BackgroundTransparency = 1,
         Position = position,
@@ -411,6 +440,18 @@ local function Icon(parent, icon, size, position, zIndex)
         ScaleType = Enum.ScaleType.Fit,
         ZIndex = zIndex or 10,
     })
+
+    if themed then
+        local colorKey = themed == "Accent2" and "Accent2" or "Accent"
+
+        RegisterTheme(function(_, colors)
+            if image and image.Parent then
+                image.ImageColor3 = colors[colorKey]
+            end
+        end)
+    end
+
+    return image
 end
 
 --========================================================
@@ -437,29 +478,6 @@ local function AddSectionAccent(parent)
         BorderSizePixel = 0,
         ZIndex = 15,
     })
-end
-
---========================================================
--- THEME
---========================================================
-
-local function CurrentTheme()
-    return THEMES[DarkyUI.CurrentTheme]
-        or THEMES.BlueSky
-end
-
-local function RegisterTheme(callback)
-    table.insert(
-        DarkyUI._ThemeObjects,
-        callback
-    )
-
-    pcall(function()
-        callback(
-            DarkyUI.CurrentTheme,
-            CurrentTheme()
-        )
-    end)
 end
 
 function DarkyUI:SetTheme(name)
@@ -3544,7 +3562,7 @@ function DarkyUI:CreateWindow(config)
                         Parent = box,
                         BackgroundTransparency = 1,
                         Position = UDim2.fromOffset(8, 0),
-                        Size = UDim2.new(1, -16, 1, 0),
+                        Size = UDim2.new(1, -38, 1, 0),
                         Text = inputConfig.Value or "",
                         PlaceholderText = inputConfig.Placeholder or "",
                         PlaceholderColor3 = COLORS.Muted,
@@ -3555,6 +3573,17 @@ function DarkyUI:CreateWindow(config)
                         TextXAlignment = Enum.TextXAlignment.Left,
                         ZIndex = 19,
                     }
+                )
+
+                -- Pencil icon: tinted with the active theme's Accent color
+                -- (BlueSky by default) and re-tints live if the theme changes.
+                Icon(
+                    box,
+                    "pencil",
+                    14,
+                    UDim2.new(1, -24, 0.5, -7),
+                    19,
+                    true
                 )
 
                 textBox.FocusLost:Connect(function(enterPressed)
