@@ -881,6 +881,21 @@ local function MakeKeySystem(config)
         }
     )
 
+    AddCorner(header, 12)
+
+    New(
+        "Frame",
+        {
+            Parent = header,
+            Name = "CornerMask",
+            Position = UDim2.new(0, 0, 1, -12),
+            Size = UDim2.new(1, 0, 0, 12),
+            BackgroundColor3 = COLORS.Background2,
+            BorderSizePixel = 0,
+            ZIndex = 2002,
+        }
+    )
+
     Stroke(header, COLORS.Border, 1)
 
     New(
@@ -1693,6 +1708,21 @@ function DarkyUI:CreateWindow(config)
             Parent = main,
             Name = "TopBar",
             Size = UDim2.new(1, 0, 0, 58),
+            BackgroundColor3 = COLORS.Background2,
+            BorderSizePixel = 0,
+            ZIndex = 20,
+        }
+    )
+
+    AddCorner(top, 12)
+
+    New(
+        "Frame",
+        {
+            Parent = top,
+            Name = "CornerMask",
+            Position = UDim2.new(0, 0, 1, -12),
+            Size = UDim2.new(1, 0, 0, 12),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
             ZIndex = 20,
@@ -3831,6 +3861,19 @@ function DarkyUI:CreateWindow(config)
                     AddCorner(header, 10)
 
                     New(
+                        "Frame",
+                        {
+                            Parent = header,
+                            Name = "CornerMask",
+                            Position = UDim2.new(0, 0, 1, -10),
+                            Size = UDim2.new(1, 0, 0, 10),
+                            BackgroundColor3 = COLORS.Background2,
+                            BorderSizePixel = 0,
+                            ZIndex = 1003,
+                        }
+                    )
+
+                    New(
                         "TextLabel",
                         {
                             Parent = header,
@@ -3974,6 +4017,8 @@ function DarkyUI:CreateWindow(config)
                         }
                     )
 
+                    local renderOptions
+
                     local function selectOption(value)
                         if multi then
                             local selectedIndex = nil
@@ -3992,6 +4037,14 @@ function DarkyUI:CreateWindow(config)
                             end
 
                             selectedLabel.Text = GetSelectedText()
+
+                            -- Refresh the option list immediately so the
+                            -- checkmark/highlight reflects the new selection
+                            -- while the popup is still open, instead of only
+                            -- updating the next time the popup is reopened.
+                            if renderOptions then
+                                renderOptions()
+                            end
 
                             if typeof(dropdownConfig.Callback) ==
                                 "function" then
@@ -4024,7 +4077,7 @@ function DarkyUI:CreateWindow(config)
                         end
                     end
 
-                    local function renderOptions()
+                    renderOptions = function()
                         for _, child in ipairs(
                             optionList:GetChildren()
                         ) do
