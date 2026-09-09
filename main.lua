@@ -877,22 +877,11 @@ local function MakeKeySystem(config)
             Size = UDim2.new(1, 0, 0, 56),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
-            ClipsDescendants = true,
             ZIndex = 2002,
         }
     )
 
-    AddCorner(header, 12)
-    New("Frame", {
-        Parent = header,
-        Position = UDim2.new(0, 0, 1, -12),
-        Size = UDim2.new(1, 0, 0, 12),
-        BackgroundColor3 = COLORS.Background2,
-        BorderSizePixel = 0,
-        ZIndex = 2002,
-    })
-
-    Stroke(header, CurrentTheme().Accent, 1)
+    Stroke(header, COLORS.Border, 1)
 
     New(
         "TextLabel",
@@ -1706,27 +1695,13 @@ function DarkyUI:CreateWindow(config)
             Size = UDim2.new(1, 0, 0, 58),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
-            ClipsDescendants = true,
             ZIndex = 20,
         }
     )
 
-    -- Rounded top header. The bottom mask keeps the header flush
-    -- against the body while the top corners stay rounded.
-    AddCorner(top, 12)
-
-    New("Frame", {
-        Parent = top,
-        Position = UDim2.new(0, 0, 1, -12),
-        Size = UDim2.new(1, 0, 0, 12),
-        BackgroundColor3 = COLORS.Background2,
-        BorderSizePixel = 0,
-        ZIndex = 20,
-    })
-
     Stroke(
         top,
-        Window.Border and CurrentTheme().Accent or COLORS.Border,
+        COLORS.Border,
         1
     )
 
@@ -3603,11 +3578,59 @@ function DarkyUI:CreateWindow(config)
                 local values =
                     dropdownConfig.Values or {}
 
-                local selected =
-                    dropdownConfig.Value
+                local multi =
+                    dropdownConfig.Multi == true
 
-                if selected == nil and #values > 0 then
-                    selected = values[1]
+                local selected
+
+                if multi then
+                    selected = {}
+
+                    if type(dropdownConfig.Value) == "table" then
+                        for _, value in ipairs(dropdownConfig.Value) do
+                            table.insert(selected, value)
+                        end
+                    elseif dropdownConfig.Value ~= nil then
+                        table.insert(selected, dropdownConfig.Value)
+                    end
+                else
+                    selected = dropdownConfig.Value
+
+                    if selected == nil and #values > 0 then
+                        selected = values[1]
+                    end
+                end
+
+                local function IsSelected(value)
+                    if not multi then
+                        return tostring(value) == tostring(selected)
+                    end
+
+                    for _, item in ipairs(selected) do
+                        if tostring(item) == tostring(value) then
+                            return true
+                        end
+                    end
+
+                    return false
+                end
+
+                local function GetSelectedText()
+                    if not multi then
+                        return tostring(selected or "Select...")
+                    end
+
+                    if #selected == 0 then
+                        return "Select..."
+                    end
+
+                    local parts = {}
+
+                    for _, value in ipairs(selected) do
+                        table.insert(parts, tostring(value))
+                    end
+
+                    return table.concat(parts, ", ")
                 end
 
                 local root = New(
@@ -3698,7 +3721,7 @@ function DarkyUI:CreateWindow(config)
                         BackgroundTransparency = 1,
                         Position = UDim2.fromOffset(9, 0),
                         Size = UDim2.new(1, -35, 1, 0),
-                        Text = tostring(selected or "Select..."),
+                        Text = GetSelectedText(),
                         TextColor3 = COLORS.Text,
                         TextSize = 10,
                         Font = Enum.Font.Gotham,
@@ -3952,18 +3975,52 @@ function DarkyUI:CreateWindow(config)
                     )
 
                     local function selectOption(value)
-                        selected = value
-                        selectedLabel.Text = tostring(value)
+                        if multi then
+                            local selectedIndex = nil
 
-                        ClosePopup()
+                            for index, item in ipairs(selected) do
+                                if tostring(item) == tostring(value) then
+                                    selectedIndex = index
+                                    break
+                                end
+                            end
 
-                        if typeof(dropdownConfig.Callback) ==
-                            "function" then
+                            if selectedIndex then
+                                table.remove(selected, selectedIndex)
+                            else
+                                table.insert(selected, value)
+                            end
 
-                            task.spawn(
-                                dropdownConfig.Callback,
-                                value
-                            )
+                            selectedLabel.Text = GetSelectedText()
+
+                            if typeof(dropdownConfig.Callback) ==
+                                "function" then
+
+                                local result = {}
+
+                                for _, item in ipairs(selected) do
+                                    table.insert(result, item)
+                                end
+
+                                task.spawn(
+                                    dropdownConfig.Callback,
+                                    result
+                                )
+                            end
+                        else
+                            selected = value
+                            selectedLabel.Text = GetSelectedText()
+
+                            ClosePopup()
+
+                            if typeof(dropdownConfig.Callback) ==
+                                "function" then
+
+                                task.spawn(
+                                    dropdownConfig.Callback,
+                                    value
+                                )
+                            end
                         end
                     end
 
@@ -4025,8 +4082,7 @@ function DarkyUI:CreateWindow(config)
                                         Size = UDim2.new(1, -45, 1, 0),
                                         Text = text,
                                         TextColor3 =
-                                            tostring(value)
-                                                == tostring(selected)
+                                            IsSelected(value)
                                             and CurrentTheme().Accent2
                                             or COLORS.Text,
                                         TextSize = 10,
@@ -4037,8 +4093,7 @@ function DarkyUI:CreateWindow(config)
                                     }
                                 )
 
-                                if tostring(value)
-                                    == tostring(selected) then
+                                if IsSelected(value) then
                                     Icon(
                                         option,
                                         "check",
@@ -4111,6 +4166,7 @@ function DarkyUI:CreateWindow(config)
 
                 local object = {
                     Root = root,
+                    Multi = multi,
                 }
 
                 function object:Refresh(newValues)
@@ -4120,45 +4176,107 @@ function DarkyUI:CreateWindow(config)
 
                     values = newValues
 
-                    local found = false
+                    if multi then
+                        local filtered = {}
 
-                    for _, value in ipairs(values) do
-                        if tostring(value)
-                            == tostring(selected) then
-                            found = true
-                            break
+                        for _, selectedValue in ipairs(selected) do
+                            for _, value in ipairs(values) do
+                                if tostring(value) == tostring(selectedValue) then
+                                    table.insert(filtered, selectedValue)
+                                    break
+                                end
+                            end
+                        end
+
+                        selected = filtered
+                    else
+                        local found = false
+
+                        for _, value in ipairs(values) do
+                            if tostring(value)
+                                == tostring(selected) then
+                                found = true
+                                break
+                            end
+                        end
+
+                        if not found then
+                            selected = values[1]
                         end
                     end
 
-                    if not found then
-                        selected = values[1]
-                    end
-
                     selectedLabel.Text =
-                        tostring(selected or "Select...")
+                        GetSelectedText()
                 end
 
                 function object:SetValue(value, callCallback)
-                    selected = value
-                    selectedLabel.Text = tostring(value)
+                    if multi then
+                        selected = {}
 
-                    if callCallback ~= false
-                        and typeof(dropdownConfig.Callback) ==
-                            "function" then
+                        if type(value) == "table" then
+                            for _, item in ipairs(value) do
+                                table.insert(selected, item)
+                            end
+                        elseif value ~= nil then
+                            table.insert(selected, value)
+                        end
 
-                        task.spawn(
-                            dropdownConfig.Callback,
-                            value
-                        )
+                        selectedLabel.Text =
+                            GetSelectedText()
+
+                        if callCallback ~= false
+                            and typeof(dropdownConfig.Callback) ==
+                                "function" then
+
+                            local result = {}
+
+                            for _, item in ipairs(selected) do
+                                table.insert(result, item)
+                            end
+
+                            task.spawn(
+                                dropdownConfig.Callback,
+                                result
+                            )
+                        end
+                    else
+                        selected = value
+
+                        selectedLabel.Text =
+                            GetSelectedText()
+
+                        if callCallback ~= false
+                            and typeof(dropdownConfig.Callback) ==
+                                "function" then
+
+                            task.spawn(
+                                dropdownConfig.Callback,
+                                value
+                            )
+                        end
                     end
                 end
 
                 function object:GetValue()
+                    if multi then
+                        local result = {}
+
+                        for _, value in ipairs(selected) do
+                            table.insert(result, value)
+                        end
+
+                        return result
+                    end
+
                     return selected
                 end
 
                 function object:GetValues()
                     return values
+                end
+
+                function object:IsMulti()
+                    return multi
                 end
 
                 Register(
