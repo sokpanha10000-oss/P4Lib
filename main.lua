@@ -57,6 +57,7 @@ local COLORS = {
 
     Border = Color3.fromRGB(52, 52, 61),
     Danger = Color3.fromRGB(235, 75, 85),
+    Info = Color3.fromRGB(70, 125, 255),
     Warning = Color3.fromRGB(245, 185, 70),
     White = Color3.fromRGB(255, 255, 255),
     Black = Color3.fromRGB(0, 0, 0),
@@ -2359,6 +2360,245 @@ function DarkyUI:CreateWindow(config)
         )
     end
 
+    --====================================================
+    -- DELETE CONFIRMATION POPUP
+    --====================================================
+
+    local function ShowDeleteConfirm()
+        local confirmGui = New(
+            "ScreenGui",
+            {
+                Name = "DarkyUI_ConfirmDelete",
+                Parent = CoreGui,
+                IgnoreGuiInset = true,
+                ResetOnSpawn = false,
+                ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+                DisplayOrder = 3500000,
+            }
+        )
+
+        local overlay = New(
+            "Frame",
+            {
+                Parent = confirmGui,
+                Size = UDim2.fromScale(1, 1),
+                BackgroundColor3 = COLORS.Black,
+                BackgroundTransparency = 0.4,
+                BorderSizePixel = 0,
+                ZIndex = 1000,
+            }
+        )
+
+        local function ClosePopup()
+            confirmGui:Destroy()
+        end
+
+        local outside = New(
+            "TextButton",
+            {
+                Parent = overlay,
+                Size = UDim2.fromScale(1, 1),
+                BackgroundTransparency = 1,
+                Text = "",
+                AutoButtonColor = false,
+                ZIndex = 1000,
+            }
+        )
+
+        outside.MouseButton1Click:Connect(ClosePopup)
+
+        local popup = New(
+            "Frame",
+            {
+                Parent = overlay,
+                Name = "ConfirmPopup",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromOffset(300, 170),
+                BackgroundColor3 = COLORS.Background,
+                BorderSizePixel = 0,
+                ClipsDescendants = true,
+                ZIndex = 1002,
+            }
+        )
+
+        AddCorner(popup, 12)
+
+        Stroke(
+            popup,
+            COLORS.Border,
+            1
+        )
+
+        local warnIcon = Icon(
+            popup,
+            "trash-2",
+            30,
+            UDim2.new(0.5, -15, 0, 20),
+            1003,
+            false
+        )
+
+        if warnIcon then
+            warnIcon.ImageColor3 = COLORS.Danger
+        end
+
+        New(
+            "TextLabel",
+            {
+                Parent = popup,
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(15, 60),
+                Size = UDim2.new(1, -30, 0, 20),
+                Text = "Delete UI library?",
+                TextColor3 = COLORS.Text,
+                TextSize = 13,
+                Font = Enum.Font.GothamBold,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                ZIndex = 1003,
+            }
+        )
+
+        New(
+            "TextLabel",
+            {
+                Parent = popup,
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(15, 82),
+                Size = UDim2.new(1, -30, 0, 32),
+                Text = "Do you really want to delete UI library? This action cannot be undone.",
+                TextColor3 = COLORS.SubText,
+                TextSize = 9,
+                Font = Enum.Font.Gotham,
+                TextWrapped = true,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                TextYAlignment = Enum.TextYAlignment.Top,
+                ZIndex = 1003,
+            }
+        )
+
+        local cancelButton = New(
+            "TextButton",
+            {
+                Parent = popup,
+                Position = UDim2.new(0, 15, 1, -46),
+                Size = UDim2.new(0.5, -20, 0, 32),
+                BackgroundColor3 = COLORS.Info,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 1003,
+            }
+        )
+
+        AddCorner(cancelButton, 8)
+
+        local cancelIcon = Icon(
+            cancelButton,
+            "x",
+            14,
+            UDim2.new(0, 12, 0.5, -7),
+            1004
+        )
+
+        if cancelIcon then
+            cancelIcon.ImageColor3 = COLORS.White
+        end
+
+        New(
+            "TextLabel",
+            {
+                Parent = cancelButton,
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(30, 0),
+                Size = UDim2.new(1, -38, 1, 0),
+                Text = "Cancel",
+                TextColor3 = COLORS.White,
+                TextSize = 11,
+                Font = Enum.Font.GothamBold,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                ZIndex = 1004,
+            }
+        )
+
+        local deleteButton = New(
+            "TextButton",
+            {
+                Parent = popup,
+                Position = UDim2.new(0.5, 5, 1, -46),
+                Size = UDim2.new(0.5, -20, 0, 32),
+                BackgroundColor3 = COLORS.Danger,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 1003,
+            }
+        )
+
+        AddCorner(deleteButton, 8)
+
+        local deleteIcon = Icon(
+            deleteButton,
+            "trash-2",
+            14,
+            UDim2.new(0, 12, 0.5, -7),
+            1004
+        )
+
+        if deleteIcon then
+            deleteIcon.ImageColor3 = COLORS.White
+        end
+
+        New(
+            "TextLabel",
+            {
+                Parent = deleteButton,
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(30, 0),
+                Size = UDim2.new(1, -38, 1, 0),
+                Text = "Delete",
+                TextColor3 = COLORS.White,
+                TextSize = 11,
+                Font = Enum.Font.GothamBold,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                ZIndex = 1004,
+            }
+        )
+
+        cancelButton.MouseEnter:Connect(function()
+            Tween(cancelButton, FAST, { BackgroundTransparency = 0.15 })
+        end)
+
+        cancelButton.MouseLeave:Connect(function()
+            Tween(cancelButton, FAST, { BackgroundTransparency = 0 })
+        end)
+
+        deleteButton.MouseEnter:Connect(function()
+            Tween(deleteButton, FAST, { BackgroundTransparency = 0.15 })
+        end)
+
+        deleteButton.MouseLeave:Connect(function()
+            Tween(deleteButton, FAST, { BackgroundTransparency = 0 })
+        end)
+
+        cancelButton.MouseButton1Click:Connect(ClosePopup)
+
+        deleteButton.MouseButton1Click:Connect(function()
+            ClosePopup()
+            Window:Destroy()
+        end)
+
+        popup.Size = UDim2.fromOffset(300, 0)
+
+        Tween(
+            popup,
+            MED,
+            {
+                Size = UDim2.fromOffset(300, 170)
+            }
+        )
+    end
+
     function Window:Destroy()
         if self.Destroyed then
             return
@@ -2439,7 +2679,7 @@ function DarkyUI:CreateWindow(config)
     end)
 
     closeButton.MouseButton1Click:Connect(function()
-        Window:Destroy()
+        ShowDeleteConfirm()
     end)
 
     --====================================================
