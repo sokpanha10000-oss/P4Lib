@@ -822,6 +822,38 @@ local function MakeKeySystem(config)
     local thumbnail =
         config.Thumbnail or {}
 
+    -- Border/Blur: connect to the Window's settings.
+    -- Explicit config.Border/config.Blur always win. Otherwise, if a
+    -- Window already exists (KeySystem created AFTER CreateWindow),
+    -- inherit its Border/Blur so both stay visually consistent.
+    -- Falls back to false, same default as Window.
+    local existingWindow =
+        DarkyUI._Window
+        and not DarkyUI._Window.Destroyed
+        and DarkyUI._Window
+        or nil
+
+    local useBorder
+    if config.Border ~= nil then
+        useBorder = config.Border == true
+    elseif existingWindow then
+        useBorder = existingWindow.Border == true
+    else
+        useBorder = false
+    end
+
+    local useBlur
+    if config.Blur ~= nil then
+        useBlur = config.Blur == true
+    elseif existingWindow then
+        useBlur = existingWindow.Blur == true
+    else
+        useBlur = false
+    end
+
+    KeySystem.Border = useBorder
+    KeySystem.Blur = useBlur
+
     local fileName =
         "DarkyUI_Key.txt"
 
@@ -875,12 +907,26 @@ local function MakeKeySystem(config)
     )
 
     AddCorner(main, 12)
-    local keyStroke = Stroke(main, CurrentTheme().Accent, 1)
-    local keyAura = CreateAuraFor(gui, main, function() return CurrentTheme().Accent end, {
-        Name = "KeyAura", Expand = 16, Radius = 12, Layers = 5, Thickness = 4, Transparency = 0.80
-    })
+    local keyStroke = Stroke(
+        main,
+        KeySystem.Border and CurrentTheme().Accent or COLORS.Border,
+        1
+    )
+    keyStroke.Transparency = KeySystem.Border and 0 or 1
+
+    local keyAura
+    if KeySystem.Blur then
+        keyAura = CreateAuraFor(gui, main, function() return CurrentTheme().Accent end, {
+            Name = "KeyAura", Expand = 16, Radius = 12, Layers = 5, Thickness = 4, Transparency = 0.80
+        })
+    end
+    KeySystem.Aura = keyAura
+
     RegisterTheme(function(_, colors)
-        if keyStroke and keyStroke.Parent then keyStroke.Color = colors.Accent end
+        if keyStroke and keyStroke.Parent then
+            keyStroke.Color = KeySystem.Border and colors.Accent or COLORS.Border
+            keyStroke.Transparency = KeySystem.Border and 0 or 1
+        end
         if keyAura and keyAura.Root and keyAura.Root.Parent then keyAura:SetColor(colors.Accent) end
     end)
 
@@ -892,22 +938,23 @@ local function MakeKeySystem(config)
         "Frame",
         {
             Parent = main,
-            Size = UDim2.new(1, 0, 0, 56),
+            Position = UDim2.fromOffset(1, 1),
+            Size = UDim2.new(1, -2, 0, 55),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
             ZIndex = 2002,
         }
     )
 
-    AddCorner(header, 12)
+    AddCorner(header, 11)
 
     New(
         "Frame",
         {
             Parent = header,
             Name = "CornerMask",
-            Position = UDim2.new(0, 0, 1, -12),
-            Size = UDim2.new(1, 0, 0, 12),
+            Position = UDim2.new(0, 0, 1, -11),
+            Size = UDim2.new(1, 0, 0, 11),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
             ZIndex = 2002,
@@ -1585,8 +1632,33 @@ function DarkyUI:CreateWindow(config)
         config.SearchBar == true
     Window.UserConfig =
         config.User or {}
-    Window.Border = config.Border == true
-    Window.Blur = config.Blur == true
+
+    -- Border/Blur: connect to the KeySystem's settings.
+    -- Explicit config.Border/config.Blur always win. Otherwise, if a
+    -- KeySystem already exists (CreateKeySystem called first, the
+    -- documented common order), inherit its Border/Blur so both stay
+    -- visually consistent. Falls back to false.
+    local existingKeySystem =
+        DarkyUI._KeySystem
+        and not DarkyUI._KeySystem.Destroyed
+        and DarkyUI._KeySystem
+        or nil
+
+    if config.Border ~= nil then
+        Window.Border = config.Border == true
+    elseif existingKeySystem then
+        Window.Border = existingKeySystem.Border == true
+    else
+        Window.Border = false
+    end
+
+    if config.Blur ~= nil then
+        Window.Blur = config.Blur == true
+    elseif existingKeySystem then
+        Window.Blur = existingKeySystem.Blur == true
+    else
+        Window.Blur = false
+    end
 
     -- If a KeySystem was just created and has not passed yet,
     -- keep the hub hidden until the KeySystem succeeds.
@@ -1725,22 +1797,23 @@ function DarkyUI:CreateWindow(config)
         {
             Parent = main,
             Name = "TopBar",
-            Size = UDim2.new(1, 0, 0, 58),
+            Position = UDim2.fromOffset(1, 1),
+            Size = UDim2.new(1, -2, 0, 57),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
             ZIndex = 20,
         }
     )
 
-    AddCorner(top, 12)
+    AddCorner(top, 11)
 
     New(
         "Frame",
         {
             Parent = top,
             Name = "CornerMask",
-            Position = UDim2.new(0, 0, 1, -12),
-            Size = UDim2.new(1, 0, 0, 12),
+            Position = UDim2.new(0, 0, 1, -11),
+            Size = UDim2.new(1, 0, 0, 11),
             BackgroundColor3 = COLORS.Background2,
             BorderSizePixel = 0,
             ZIndex = 20,
@@ -3880,22 +3953,23 @@ function DarkyUI:CreateWindow(config)
                         "Frame",
                         {
                             Parent = popup,
-                            Size = UDim2.new(1, 0, 0, 50),
+                            Position = UDim2.fromOffset(1, 1),
+                            Size = UDim2.new(1, -2, 0, 49),
                             BackgroundColor3 = COLORS.Background2,
                             BorderSizePixel = 0,
                             ZIndex = 1003,
                         }
                     )
 
-                    AddCorner(header, 10)
+                    AddCorner(header, 9)
 
                     New(
                         "Frame",
                         {
                             Parent = header,
                             Name = "CornerMask",
-                            Position = UDim2.new(0, 0, 1, -10),
-                            Size = UDim2.new(1, 0, 0, 10),
+                            Position = UDim2.new(0, 0, 1, -9),
+                            Size = UDim2.new(1, 0, 0, 9),
                             BackgroundColor3 = COLORS.Background2,
                             BorderSizePixel = 0,
                             ZIndex = 1003,
