@@ -32,6 +32,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local ContentProvider = game:GetService("ContentProvider")
 local LocalPlayer = Players.LocalPlayer
 
 --========================================================
@@ -150,6 +151,40 @@ local function Tween(object, info, properties)
     tween:Play()
 
     return tween
+end
+
+-- Roblox never errors on a bad/invalid/moderated rbxassetid:// - the
+-- ImageLabel just silently renders blank with no feedback. This checks
+-- whether the asset actually loaded and, if not, hands back control via
+-- onFailed so the caller can fall back to a placeholder (e.g. initials).
+-- Runs off-thread so it never blocks UI creation.
+local function VerifyImageLoad(imageLabel, onFailed)
+    if not imageLabel then
+        return
+    end
+
+    task.spawn(function()
+        local ok, contentId = pcall(function()
+            return imageLabel.Image
+        end)
+
+        if not ok or not contentId or contentId == "" then
+            return
+        end
+
+        local success, result = pcall(function()
+            ContentProvider:PreloadAsync({ imageLabel })
+            return imageLabel.IsLoaded
+        end)
+
+        local loaded = success and (result == nil or result == true)
+
+        if not loaded then
+            if imageLabel.Parent and typeof(onFailed) == "function" then
+                pcall(onFailed)
+            end
+        end
+    end)
 end
 
 local function Stroke(parent, color, thickness)
@@ -353,46 +388,50 @@ DarkyUI.Icons = {
     lucide = LoadLucide(),
 }
 
+-- Returns asset, isGlyph.
+-- isGlyph = true only for resolved lucide icon names (monochrome glyphs,
+-- safe to tint). Direct rbxassetid/rbxasset/http(s) images are real
+-- pictures and must NOT be tinted, or their colors get washed out/hidden.
 local function ResolveIcon(icon)
     if icon == nil then
-        return nil
+        return nil, false
     end
 
     if typeof(icon) == "number" then
-        return AssetId(icon)
+        return AssetId(icon), false
     end
 
     if typeof(icon) ~= "string" then
-        return nil
+        return nil, false
     end
 
     if IsAssetId(icon) then
-        return AssetId(icon)
+        return AssetId(icon), false
     end
 
     if icon:match("^https?://") then
-        return icon
+        return icon, false
     end
 
     if icon:match("^rbxasset") then
-        return icon
+        return icon, false
     end
 
     local direct = DarkyUI.Icons.lucide[icon]
 
     if direct then
-        return AssetId(tostring(direct))
+        return AssetId(tostring(direct)), true
     end
 
     local lower = icon:lower()
 
     for name, value in pairs(DarkyUI.Icons.lucide) do
         if tostring(name):lower() == lower then
-            return AssetId(tostring(value))
+            return AssetId(tostring(value)), true
         end
     end
 
-    return nil
+    return nil, false
 end
 
 --========================================================
@@ -425,7 +464,7 @@ end
 --                      automatically re-tints whenever the theme changes.
 --         "Accent2" = same as true, but follows Accent2 instead of Accent.
 local function Icon(parent, icon, size, position, zIndex, themed)
-    local asset = ResolveIcon(icon)
+    local asset, isGlyph = ResolveIcon(icon)
 
     if not asset then
         return nil
@@ -437,12 +476,14 @@ local function Icon(parent, icon, size, position, zIndex, themed)
         Position = position,
         Size = UDim2.fromOffset(size, size),
         Image = asset,
-        ImageColor3 = COLORS.Text,
+        ImageColor3 = isGlyph and COLORS.Text or COLORS.White,
         ScaleType = Enum.ScaleType.Fit,
         ZIndex = zIndex or 10,
     })
 
-    if themed then
+    -- Only tint lucide glyphs live with the theme; a real custom image
+    -- (rbxassetid/rbxasset/http) is left as-is regardless of `themed`.
+    if themed and isGlyph then
         local colorKey = themed == "Accent2" and "Accent2" or "Accent"
 
         RegisterTheme(function(_, colors)
@@ -820,8 +861,17 @@ local function MakeKeySystem(config)
     local saveKey =
         config.SaveKey == true
 
-    local thumbnail =
-        config.Thumbnail or {}
+    -- Thumbnail accepts either the documented table shape
+    -- ({ Image = "rbxassetid://...", Title = "..." }) or a bare
+    -- image value (rbxassetid string/number, rbxasset://, or
+    -- http(s) URL) passed directly as config.Thumbnail, so a plain
+    -- id doesn't silently fail to show.
+    local thumbnail = config.Thumbnail or {}
+
+    if typeof(thumbnail) == "string"
+        or typeof(thumbnail) == "number" then
+        thumbnail = { Image = thumbnail }
+    end
 
     -- Border/Blur: connect to the Window's settings.
     -- Explicit config.Border/config.Blur always win. Otherwise, if a
@@ -2638,15 +2688,19 @@ function DarkyUI:CreateWindow(config)
         self.Image = value
         DarkyUI.CurrentImage = value
 
-        local asset = ResolveIcon(value)
+        local asset, isGlyph = ResolveIcon(value)
 
         if asset then
+            local tint = isGlyph and COLORS.Text or COLORS.White
+
             if windowIcon then
                 windowIcon.Image = asset
+                windowIcon.ImageColor3 = tint
             end
 
             if floatingIcon then
                 floatingIcon.Image = asset
+                floatingIcon.ImageColor3 = tint
             end
         end
     end
