@@ -3288,6 +3288,19 @@ function DarkyUI:CreateWindow(config)
             )
         end
 
+        -- Single source of truth for whether the slider bar should
+        -- currently be shown: only if this tab is the selected one
+        -- AND it actually has more than one page. Called from every
+        -- place that changes page count or tab selection, instead of
+        -- scattered .Visible assignments that can drift out of sync
+        -- with each other depending on call order.
+        local function SyncSwitcherVisibility()
+            pageSwitcher.Visible =
+                Tab.Selected and #Tab.Pages > 1
+        end
+
+        Tab._SyncSwitcherVisibility = SyncSwitcherVisibility
+
         -- Animated slide: the current page slides fully off to one
         -- side while the target page slides in from the other side,
         -- so it reads as a swipe rather than an instant cut.
@@ -3518,10 +3531,11 @@ function DarkyUI:CreateWindow(config)
             -- page to switch between; a tab with a single (default)
             -- page keeps its old, uncluttered look.
             if #Tab.Pages > 1 then
-                pageSwitcher.Visible = true
                 ReserveSwitcherSpace()
                 RefreshSwitcherBar()
             end
+
+            SyncSwitcherVisibility()
 
             function pageObj:Select()
                 local index = 1
@@ -3599,11 +3613,17 @@ function DarkyUI:CreateWindow(config)
             -- one) would end up permanently hidden.
             if defaultWasUnused and #Tab.Pages == 1 then
                 Tab._ActivePage = newPageObj
-                newPageObj.Frame.Visible = true
 
-                if Tab.Selected then
-                    RefreshSwitcherBar()
-                end
+                -- Only actually show it right now if this tab is the
+                -- one currently selected; otherwise Tab:Select() will
+                -- show the right page whenever this tab is chosen.
+                newPageObj.Frame.Visible = Tab.Selected == true
+            end
+
+            SyncSwitcherVisibility()
+
+            if Tab.Selected then
+                RefreshSwitcherBar()
             end
 
             return newPageObj
@@ -3636,6 +3656,8 @@ function DarkyUI:CreateWindow(config)
                 local active =
                     other == Tab
 
+                other.Selected = active
+
                 -- Show whichever page was last active within that
                 -- tab (defaults to the tab's default/"Main" page),
                 -- not always the same first page.
@@ -3644,12 +3666,10 @@ function DarkyUI:CreateWindow(config)
                         active and otherPage == other._ActivePage
                 end
 
-                if other._PageSwitcher then
-                    other._PageSwitcher.Visible =
-                        active and #other.Pages > 1
+                if other._SyncSwitcherVisibility then
+                    other._SyncSwitcherVisibility()
                 end
 
-                other.Selected = active
                 other._Bar.Visible = active
 
                 other.Button.BackgroundColor3 = active
