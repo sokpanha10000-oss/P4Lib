@@ -2961,7 +2961,7 @@ function DarkyUI:CreateWindow(config)
 
         local pageCount = 0
 
-        local function BuildPage(pageTitle)
+        local function BuildPage(pageTitle, pageIcon)
             pageCount = pageCount + 1
 
             local pageFrame = New(
@@ -3109,6 +3109,7 @@ function DarkyUI:CreateWindow(config)
 
             local pageObj = {
                 Title = pageTitle or "Page",
+                Icon = pageIcon,
                 Frame = pageFrame,
                 Sections = {},
                 _ColumnToggle = false,
@@ -3152,11 +3153,10 @@ function DarkyUI:CreateWindow(config)
         --================================================
         -- Each tab can hold multiple pages (Tab:CreatePage /
         -- Section:CreatePage). Only one page is visible within the
-        -- tab at a time. A thin bar with left/right arrows lets the
-        -- user slide between them - clicking an arrow animates the
-        -- current page sliding out while the next/previous page
-        -- slides in from the matching side, and shows the page's
-        -- title plus its position ("2 / 3") in between the arrows.
+        -- tab at a time. This bar shows the current page's icon and
+        -- title ("2 / 3") and is dragged/swiped left or right to
+        -- switch pages - no buttons, just a direct swipe gesture,
+        -- similar to scrolling the tab list itself.
 
         local pageSwitcher = New(
             "Frame",
@@ -3176,33 +3176,25 @@ function DarkyUI:CreateWindow(config)
 
         Stroke(pageSwitcher, COLORS.Border, 1)
 
-        local prevArrow = New(
-            "TextButton",
+        local pageIconHolder = New(
+            "Frame",
             {
                 Parent = pageSwitcher,
-                Position = UDim2.fromOffset(0, 0),
-                Size = UDim2.fromOffset(26, 26),
+                Position = UDim2.fromOffset(6, 4),
+                Size = UDim2.fromOffset(18, 18),
                 BackgroundTransparency = 1,
-                AutoButtonColor = false,
-                Text = "",
+                BorderSizePixel = 0,
+                Visible = false,
                 ZIndex = 13,
             }
-        )
-
-        local prevIcon = Icon(
-            prevArrow,
-            "chevron-left",
-            14,
-            UDim2.new(0.5, -7, 0.5, -7),
-            14
         )
 
         local pageLabel = New(
             "TextLabel",
             {
                 Parent = pageSwitcher,
-                Position = UDim2.fromOffset(26, 0),
-                Size = UDim2.new(1, -52, 1, 0),
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 Text = "",
                 TextColor3 = COLORS.Text,
@@ -3214,25 +3206,19 @@ function DarkyUI:CreateWindow(config)
             }
         )
 
-        local nextArrow = New(
+        -- The swipeable hit area covers the whole bar. A plain
+        -- TextButton doubles as the InputBegan/Changed/Ended target
+        -- for the drag gesture below.
+        local swipeArea = New(
             "TextButton",
             {
                 Parent = pageSwitcher,
-                Position = UDim2.new(1, -26, 0, 0),
-                Size = UDim2.fromOffset(26, 26),
+                Size = UDim2.fromScale(1, 1),
                 BackgroundTransparency = 1,
                 AutoButtonColor = false,
                 Text = "",
-                ZIndex = 13,
+                ZIndex = 14,
             }
-        )
-
-        local nextIcon = Icon(
-            nextArrow,
-            "chevron-right",
-            14,
-            UDim2.new(0.5, -7, 0.5, -7),
-            14
         )
 
         Tab._PageSwitcher = pageSwitcher
@@ -3257,28 +3243,51 @@ function DarkyUI:CreateWindow(config)
             return 1
         end
 
+        local currentPageIcon = nil
+
         local function RefreshSwitcherBar()
             local index = CurrentPageIndex()
             local total = #Tab.Pages
+            local activePage = Tab._ActivePage
 
-            pageLabel.Text = Tab._ActivePage.Title
+            local hasIcon = activePage.Icon ~= nil
+                and activePage.Icon ~= ""
+
+            pageIconHolder.Visible = hasIcon
+
+            pageLabel.Position = hasIcon
+                and UDim2.fromOffset(24, 0)
+                or UDim2.fromOffset(0, 0)
+
+            pageLabel.Size = hasIcon
+                and UDim2.new(1, -24, 1, 0)
+                or UDim2.new(1, 0, 1, 0)
+
+            pageLabel.TextXAlignment = hasIcon
+                and Enum.TextXAlignment.Left
+                or Enum.TextXAlignment.Center
+
+            pageLabel.Text = activePage.Title
                 .. "  ("
                 .. tostring(index)
                 .. "/"
                 .. tostring(total)
                 .. ")"
 
-            local arrowDim = COLORS.Muted
-            local arrowActive = COLORS.Text
-
-            if prevIcon then
-                prevIcon.ImageColor3 =
-                    index > 1 and arrowActive or arrowDim
+            if currentPageIcon then
+                currentPageIcon:Destroy()
+                currentPageIcon = nil
             end
 
-            if nextIcon then
-                nextIcon.ImageColor3 =
-                    index < total and arrowActive or arrowDim
+            if hasIcon then
+                currentPageIcon = IconOrBadge(
+                    pageIconHolder,
+                    activePage.Icon,
+                    18,
+                    UDim2.fromOffset(0, 0),
+                    13,
+                    activePage.Title
+                )
             end
         end
 
@@ -3287,7 +3296,7 @@ function DarkyUI:CreateWindow(config)
         -- so it reads as a swipe rather than an instant cut.
         local sliding = false
 
-        local function SlideToIndex(targetIndex, direction)
+        local function SlideToIndex(targetIndex, direction, continuingDrag)
             if sliding then
                 return
             end
@@ -3312,11 +3321,17 @@ function DarkyUI:CreateWindow(config)
                 and page.AbsoluteSize.X
                 or 380
 
-            toPage.Frame.Visible = true
-            toPage.Frame.Position = UDim2.fromOffset(
-                direction * width,
-                toPage.Frame.Position.Y.Offset
-            )
+            -- When continuing an in-progress drag, both frames are
+            -- already positioned near where they should be (the user
+            -- dragged them there) - just tween on from there instead
+            -- of snapping back to a fixed starting offset first.
+            if not continuingDrag then
+                toPage.Frame.Visible = true
+                toPage.Frame.Position = UDim2.fromOffset(
+                    direction * width,
+                    toPage.Frame.Position.Y.Offset
+                )
+            end
 
             Tween(
                 fromPage.Frame,
@@ -3359,12 +3374,144 @@ function DarkyUI:CreateWindow(config)
             end
         end
 
-        prevArrow.MouseButton1Click:Connect(function()
-            SlideToIndex(CurrentPageIndex() - 1, -1)
+        -- Swipe/drag gesture: press and drag left or right across the
+        -- bar (mouse or touch) to switch pages, mirroring how the
+        -- tab list itself scrolls - the current page visibly follows
+        -- the drag, then either snaps to the next/previous page or
+        -- springs back depending on how far it was dragged.
+        local dragging = false
+        local dragStartX = 0
+        local dragFromPage = nil
+        local dragPeekPage = nil
+        local dragPeekDirection = 0
+        local SWIPE_THRESHOLD = 55
+
+        local function EndDrag(input)
+            if not dragging then
+                return
+            end
+
+            dragging = false
+
+            local dragDeltaX =
+                input.Position.X - dragStartX
+
+            if dragDeltaX <= -SWIPE_THRESHOLD and dragPeekPage then
+                SlideToIndex(CurrentPageIndex() + 1, 1, true)
+            elseif dragDeltaX >= SWIPE_THRESHOLD and dragPeekPage then
+                SlideToIndex(CurrentPageIndex() - 1, -1, true)
+            else
+                -- Not far enough - spring back to where it started.
+                if dragPeekPage then
+                    dragPeekPage.Frame.Visible = false
+                end
+
+                Tween(
+                    dragFromPage.Frame,
+                    FAST,
+                    {
+                        Position = UDim2.fromOffset(
+                            0,
+                            dragFromPage.Frame.Position.Y.Offset
+                        )
+                    }
+                )
+            end
+
+            dragFromPage = nil
+            dragPeekPage = nil
+        end
+
+        swipeArea.InputBegan:Connect(function(input)
+            if sliding then
+                return
+            end
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseButton1
+                or input.UserInputType ==
+                Enum.UserInputType.Touch then
+
+                dragging = true
+                dragStartX = input.Position.X
+                dragFromPage = Tab._ActivePage
+                dragPeekPage = nil
+                dragPeekDirection = 0
+            end
         end)
 
-        nextArrow.MouseButton1Click:Connect(function()
-            SlideToIndex(CurrentPageIndex() + 1, 1)
+        UserInputService.InputChanged:Connect(function(input)
+            if not dragging then
+                return
+            end
+
+            if input.UserInputType ==
+                Enum.UserInputType.MouseMovement
+                or input.UserInputType ==
+                Enum.UserInputType.Touch then
+
+                local dragDeltaX =
+                    input.Position.X - dragStartX
+
+                local currentIndex = CurrentPageIndex()
+                local direction = dragDeltaX < 0 and 1 or -1
+                local peekIndex = currentIndex + direction
+
+                if peekIndex < 1
+                    or peekIndex > #Tab.Pages then
+
+                    -- Nothing to swipe to on this side; resist a
+                    -- little rather than dragging freely off-screen.
+                    dragFromPage.Frame.Position = UDim2.fromOffset(
+                        dragDeltaX * 0.3,
+                        dragFromPage.Frame.Position.Y.Offset
+                    )
+
+                    if dragPeekPage then
+                        dragPeekPage.Frame.Visible = false
+                        dragPeekPage = nil
+                    end
+
+                    return
+                end
+
+                if dragPeekPage ~= Tab.Pages[peekIndex] then
+                    if dragPeekPage then
+                        dragPeekPage.Frame.Visible = false
+                    end
+
+                    dragPeekPage = Tab.Pages[peekIndex]
+                    dragPeekDirection = direction
+                    dragPeekPage.Frame.Visible = true
+                end
+
+                local width = page.AbsoluteSize.X > 0
+                    and page.AbsoluteSize.X
+                    or 380
+
+                dragFromPage.Frame.Position = UDim2.fromOffset(
+                    dragDeltaX,
+                    dragFromPage.Frame.Position.Y.Offset
+                )
+
+                dragPeekPage.Frame.Position = UDim2.fromOffset(
+                    dragDeltaX + (dragPeekDirection * width),
+                    dragPeekPage.Frame.Position.Y.Offset
+                )
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(input)
+            if dragging
+                and (
+                    input.UserInputType ==
+                        Enum.UserInputType.MouseButton1
+                    or input.UserInputType ==
+                        Enum.UserInputType.Touch
+                ) then
+
+                EndDrag(input)
+            end
         end)
 
         local function RegisterPage(pageObj)
@@ -3413,12 +3560,34 @@ function DarkyUI:CreateWindow(config)
             pageConfig = pageConfig or {}
 
             local newPageObj = BuildPage(
-                pageConfig.Title or ("Page " .. tostring(#Tab.Pages + 1))
+                pageConfig.Title or ("Page " .. tostring(#Tab.Pages + 1)),
+                pageConfig.Icon
             )
 
             RegisterPage(newPageObj)
 
             return newPageObj
+        end
+
+        -- Lets the implicit default/"Main" page (the one sections
+        -- land on when created directly via Tab:CreateSection or
+        -- Section1:CreateSection with no page involved) be renamed
+        -- and given an icon too, since it's built before the user
+        -- has a chance to configure it otherwise.
+        function Tab:SetDefaultPage(pageConfig)
+            pageConfig = pageConfig or {}
+
+            if pageConfig.Title ~= nil then
+                defaultPageObj.Title = tostring(pageConfig.Title)
+            end
+
+            if pageConfig.Icon ~= nil then
+                defaultPageObj.Icon = pageConfig.Icon
+            end
+
+            RefreshSwitcherBar()
+
+            return defaultPageObj
         end
 
 
