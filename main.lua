@@ -3176,7 +3176,7 @@ function DarkyUI:CreateWindow(config)
                 Parent = content,
                 Name = "PageSwitcher_" .. tostring(#Window.Tabs + 1),
                 Position = UDim2.fromOffset(0, 0),
-                Size = UDim2.new(1, 0, 0, 26),
+                Size = UDim2.new(1, 0, 0, 38),
                 BackgroundColor3 = COLORS.Panel,
                 BorderSizePixel = 0,
                 Visible = false,
@@ -3184,7 +3184,7 @@ function DarkyUI:CreateWindow(config)
             }
         )
 
-        AddCorner(pageSwitcher, 7)
+        AddCorner(pageSwitcher, 8)
 
         Stroke(pageSwitcher, COLORS.Border, 1)
 
@@ -3192,10 +3192,9 @@ function DarkyUI:CreateWindow(config)
             "Frame",
             {
                 Parent = pageSwitcher,
-                Position = UDim2.fromOffset(6, 4),
-                Size = UDim2.fromOffset(18, 18),
                 BackgroundTransparency = 1,
-                BorderSizePixel = 0,
+                Position = UDim2.fromOffset(8, 0),
+                Size = UDim2.fromOffset(38, 38),
                 Visible = false,
                 ZIndex = 13,
             }
@@ -3205,14 +3204,14 @@ function DarkyUI:CreateWindow(config)
             "TextLabel",
             {
                 Parent = pageSwitcher,
-                Position = UDim2.fromOffset(0, 0),
-                Size = UDim2.new(1, 0, 1, 0),
+                Position = UDim2.fromOffset(47, 0),
+                Size = UDim2.new(1, -53, 1, 0),
                 BackgroundTransparency = 1,
                 Text = "",
                 TextColor3 = COLORS.Text,
-                TextSize = 10,
+                TextSize = 11,
                 Font = Enum.Font.GothamMedium,
-                TextXAlignment = Enum.TextXAlignment.Center,
+                TextXAlignment = Enum.TextXAlignment.Left,
                 TextTruncate = Enum.TextTruncate.AtEnd,
                 ZIndex = 13,
             }
@@ -3240,8 +3239,8 @@ function DarkyUI:CreateWindow(config)
         -- Runs once, the moment the 2nd page is added.
         local function ReserveSwitcherSpace()
             for _, pageObj in ipairs(Tab.Pages) do
-                pageObj.Frame.Position = UDim2.fromOffset(0, 32)
-                pageObj.Frame.Size = UDim2.new(1, 0, 1, -32)
+                pageObj.Frame.Position = UDim2.fromOffset(0, 44)
+                pageObj.Frame.Size = UDim2.new(1, 0, 1, -44)
             end
         end
 
@@ -3262,23 +3261,6 @@ function DarkyUI:CreateWindow(config)
             local total = #Tab.Pages
             local activePage = Tab._ActivePage
 
-            local hasIcon = activePage.Icon ~= nil
-                and activePage.Icon ~= ""
-
-            pageIconHolder.Visible = hasIcon
-
-            pageLabel.Position = hasIcon
-                and UDim2.fromOffset(24, 0)
-                or UDim2.fromOffset(0, 0)
-
-            pageLabel.Size = hasIcon
-                and UDim2.new(1, -24, 1, 0)
-                or UDim2.new(1, 0, 1, 0)
-
-            pageLabel.TextXAlignment = hasIcon
-                and Enum.TextXAlignment.Left
-                or Enum.TextXAlignment.Center
-
             pageLabel.Text = activePage.Title
                 .. "  ("
                 .. tostring(index)
@@ -3291,16 +3273,19 @@ function DarkyUI:CreateWindow(config)
                 currentPageIcon = nil
             end
 
-            if hasIcon then
-                currentPageIcon = IconOrBadge(
-                    pageIconHolder,
-                    activePage.Icon,
-                    18,
-                    UDim2.fromOffset(0, 0),
-                    13,
-                    activePage.Title
-                )
-            end
+            pageIconHolder.Visible = true
+
+            -- Same treatment as the sidebar tab list: a real icon if
+            -- one was given, otherwise a generated letter badge, so
+            -- the header always has an icon slot instead of a gap.
+            currentPageIcon = IconOrBadge(
+                pageIconHolder,
+                activePage.Icon,
+                17,
+                UDim2.new(0.5, -8, 0.5, -8),
+                13,
+                activePage.Title
+            )
         end
 
         -- Animated slide: the current page slides fully off to one
@@ -3591,8 +3576,11 @@ function DarkyUI:CreateWindow(config)
             -- content and deserves a slot in the slider too. If not,
             -- it stays hidden/unregistered rather than showing up as
             -- an empty, unwanted "Main" page.
+            local defaultWasUnused = not defaultPageRegistered
+
             if #defaultPageObj.Sections > 0 then
                 EnsureDefaultPageRegistered()
+                defaultWasUnused = false
             end
 
             local newPageObj = BuildPage(
@@ -3601,6 +3589,22 @@ function DarkyUI:CreateWindow(config)
             )
 
             RegisterPage(newPageObj)
+
+            -- The default page was never actually used (no sections
+            -- ever landed on it, so it stayed unregistered/hidden).
+            -- Whichever page is created first in that case becomes
+            -- the tab's visible page - otherwise Tab._ActivePage
+            -- would still point at the unused default page, which
+            -- isn't in Tab.Pages, and every page (including this new
+            -- one) would end up permanently hidden.
+            if defaultWasUnused and #Tab.Pages == 1 then
+                Tab._ActivePage = newPageObj
+                newPageObj.Frame.Visible = true
+
+                if Tab.Selected then
+                    RefreshSwitcherBar()
+                end
+            end
 
             return newPageObj
         end
