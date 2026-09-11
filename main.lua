@@ -3141,20 +3141,22 @@ function DarkyUI:CreateWindow(config)
 
         Tab.Button = tabButton
         Tab.Page = page
-        Tab.Pages = { defaultPageObj }
+        Tab.Pages = {}
         Tab._DefaultPage = defaultPageObj
         Tab._ActivePage = defaultPageObj
         Tab._Bar = selectedBar
         Tab._Text = tabText
 
         --================================================
-        -- PAGE SWITCHER (shown only once a 2nd page exists)
+        -- PAGE SLIDER (shown only once a 2nd page exists)
         --================================================
         -- Each tab can hold multiple pages (Tab:CreatePage /
         -- Section:CreatePage). Only one page is visible within the
-        -- tab at a time; this small pill row lets the user switch
-        -- between them, similar in spirit to the tab list itself but
-        -- scoped to the current tab's own pages.
+        -- tab at a time. A thin bar with left/right arrows lets the
+        -- user slide between them - clicking an arrow animates the
+        -- current page sliding out while the next/previous page
+        -- slides in from the matching side, and shows the page's
+        -- title plus its position ("2 / 3") in between the arrows.
 
         local pageSwitcher = New(
             "Frame",
@@ -3163,28 +3165,81 @@ function DarkyUI:CreateWindow(config)
                 Name = "PageSwitcher_" .. tostring(#Window.Tabs + 1),
                 Position = UDim2.fromOffset(0, 0),
                 Size = UDim2.new(1, 0, 0, 26),
-                BackgroundTransparency = 1,
+                BackgroundColor3 = COLORS.Panel,
                 BorderSizePixel = 0,
                 Visible = false,
                 ZIndex = 12,
             }
         )
 
-        New(
-            "UIListLayout",
+        AddCorner(pageSwitcher, 7)
+
+        Stroke(pageSwitcher, COLORS.Border, 1)
+
+        local prevArrow = New(
+            "TextButton",
             {
                 Parent = pageSwitcher,
-                FillDirection = Enum.FillDirection.Horizontal,
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Padding = UDim.new(0, 6),
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.fromOffset(26, 26),
+                BackgroundTransparency = 1,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 13,
             }
+        )
+
+        local prevIcon = Icon(
+            prevArrow,
+            "chevron-left",
+            14,
+            UDim2.new(0.5, -7, 0.5, -7),
+            14
+        )
+
+        local pageLabel = New(
+            "TextLabel",
+            {
+                Parent = pageSwitcher,
+                Position = UDim2.fromOffset(26, 0),
+                Size = UDim2.new(1, -52, 1, 0),
+                BackgroundTransparency = 1,
+                Text = "",
+                TextColor3 = COLORS.Text,
+                TextSize = 10,
+                Font = Enum.Font.GothamMedium,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                ZIndex = 13,
+            }
+        )
+
+        local nextArrow = New(
+            "TextButton",
+            {
+                Parent = pageSwitcher,
+                Position = UDim2.new(1, -26, 0, 0),
+                Size = UDim2.fromOffset(26, 26),
+                BackgroundTransparency = 1,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 13,
+            }
+        )
+
+        local nextIcon = Icon(
+            nextArrow,
+            "chevron-right",
+            14,
+            UDim2.new(0.5, -7, 0.5, -7),
+            14
         )
 
         Tab._PageSwitcher = pageSwitcher
 
-        -- Reserve a strip at the top of `content` for the switcher
-        -- bar, only for tabs that actually end up with multiple
-        -- pages. Runs once, the moment the 2nd page is added.
+        -- Reserve a strip at the top of `content` for the slider bar,
+        -- only for tabs that actually end up with multiple pages.
+        -- Runs once, the moment the 2nd page is added.
         local function ReserveSwitcherSpace()
             for _, pageObj in ipairs(Tab.Pages) do
                 pageObj.Frame.Position = UDim2.fromOffset(0, 32)
@@ -3192,84 +3247,163 @@ function DarkyUI:CreateWindow(config)
             end
         end
 
-        local function AddPageSwitcherButton(pageObj)
-            local pillWidth = math.clamp(
-                (#pageObj.Title * 7) + 24,
-                50,
-                160
-            )
-
-            local pill = New(
-                "TextButton",
-                {
-                    Parent = pageSwitcher,
-                    Size = UDim2.fromOffset(pillWidth, 24),
-                    BackgroundColor3 = COLORS.Panel,
-                    BorderSizePixel = 0,
-                    AutoButtonColor = false,
-                    Text = "",
-                    LayoutOrder = #Tab.Pages,
-                    ZIndex = 12,
-                }
-            )
-
-            AddCorner(pill, 7)
-
-            Stroke(pill, COLORS.Border, 1)
-
-            local pillLabel = New(
-                "TextLabel",
-                {
-                    Parent = pill,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.fromScale(1, 1),
-                    Text = pageObj.Title,
-                    TextColor3 = COLORS.SubText,
-                    TextSize = 10,
-                    Font = Enum.Font.GothamMedium,
-                    ZIndex = 13,
-                }
-            )
-
-            pageObj._Pill = pill
-            pageObj._PillLabel = pillLabel
-
-            pill.MouseButton1Click:Connect(function()
-                pageObj:Select()
-            end)
-
-            -- Only reveal the switcher bar once there's more than one
-            -- page to switch between; a tab with a single (default)
-            -- page keeps its old, uncluttered look.
-            if #Tab.Pages > 1 then
-                pageSwitcher.Visible = true
-                ReserveSwitcherSpace()
-            end
-        end
-
-        function defaultPageObj:Select()
-            for _, other in ipairs(Tab.Pages) do
-                local active = other == defaultPageObj
-
-                other.Frame.Visible = active
-
-                if other._Pill then
-                    other._Pill.BackgroundColor3 = active
-                        and COLORS.Panel2
-                        or COLORS.Panel
-
-                    other._PillLabel.TextColor3 = active
-                        and COLORS.Text
-                        or COLORS.SubText
+        local function CurrentPageIndex()
+            for index, pageObj in ipairs(Tab.Pages) do
+                if pageObj == Tab._ActivePage then
+                    return index
                 end
             end
 
-            Tab._ActivePage = defaultPageObj
+            return 1
+        end
+
+        local function RefreshSwitcherBar()
+            local index = CurrentPageIndex()
+            local total = #Tab.Pages
+
+            pageLabel.Text = Tab._ActivePage.Title
+                .. "  ("
+                .. tostring(index)
+                .. "/"
+                .. tostring(total)
+                .. ")"
+
+            local arrowDim = COLORS.Muted
+            local arrowActive = COLORS.Text
+
+            if prevIcon then
+                prevIcon.ImageColor3 =
+                    index > 1 and arrowActive or arrowDim
+            end
+
+            if nextIcon then
+                nextIcon.ImageColor3 =
+                    index < total and arrowActive or arrowDim
+            end
+        end
+
+        -- Animated slide: the current page slides fully off to one
+        -- side while the target page slides in from the other side,
+        -- so it reads as a swipe rather than an instant cut.
+        local sliding = false
+
+        local function SlideToIndex(targetIndex, direction)
+            if sliding then
+                return
+            end
+
+            local total = #Tab.Pages
+
+            if targetIndex < 1
+                or targetIndex > total then
+                return
+            end
+
+            local fromPage = Tab._ActivePage
+            local toPage = Tab.Pages[targetIndex]
+
+            if fromPage == toPage then
+                return
+            end
+
+            sliding = true
+
+            local width = page.AbsoluteSize.X > 0
+                and page.AbsoluteSize.X
+                or 380
+
+            toPage.Frame.Visible = true
+            toPage.Frame.Position = UDim2.fromOffset(
+                direction * width,
+                toPage.Frame.Position.Y.Offset
+            )
+
+            Tween(
+                fromPage.Frame,
+                MED,
+                {
+                    Position = UDim2.fromOffset(
+                        -direction * width,
+                        fromPage.Frame.Position.Y.Offset
+                    )
+                }
+            )
+
+            Tween(
+                toPage.Frame,
+                MED,
+                {
+                    Position = UDim2.fromOffset(
+                        0,
+                        toPage.Frame.Position.Y.Offset
+                    )
+                }
+            )
+
+            Tab._ActivePage = toPage
+
+            task.delay(MED.Time, function()
+                fromPage.Frame.Visible = false
+                fromPage.Frame.Position = UDim2.fromOffset(
+                    0,
+                    fromPage.Frame.Position.Y.Offset
+                )
+                sliding = false
+                RefreshSwitcherBar()
+            end)
+
+            RefreshSwitcherBar()
 
             if searchBox then
                 SearchElements(searchBox.Text)
             end
         end
+
+        prevArrow.MouseButton1Click:Connect(function()
+            SlideToIndex(CurrentPageIndex() - 1, -1)
+        end)
+
+        nextArrow.MouseButton1Click:Connect(function()
+            SlideToIndex(CurrentPageIndex() + 1, 1)
+        end)
+
+        local function RegisterPage(pageObj)
+            table.insert(Tab.Pages, pageObj)
+
+            -- Only reveal the slider bar once there's more than one
+            -- page to switch between; a tab with a single (default)
+            -- page keeps its old, uncluttered look.
+            if #Tab.Pages > 1 then
+                pageSwitcher.Visible = true
+                ReserveSwitcherSpace()
+                RefreshSwitcherBar()
+            end
+
+            function pageObj:Select()
+                local index = 1
+
+                for i, other in ipairs(Tab.Pages) do
+                    if other == pageObj then
+                        index = i
+                    end
+                end
+
+                local currentIndex = CurrentPageIndex()
+
+                if currentIndex == index then
+                    return
+                end
+
+                local direction = index > currentIndex and 1 or -1
+                SlideToIndex(index, direction)
+            end
+
+            function pageObj:CreateSection(sectionConfig)
+                return Tab:CreateSection(sectionConfig, pageObj)
+            end
+        end
+
+        RegisterPage(defaultPageObj)
 
         --================================================
         -- CREATE PAGE
@@ -3278,50 +3412,15 @@ function DarkyUI:CreateWindow(config)
         function Tab:CreatePage(pageConfig)
             pageConfig = pageConfig or {}
 
-            -- The default page only gets a switcher pill once we know
-            -- for sure a 2nd page exists - otherwise a single-page tab
-            -- would show a pointless one-pill bar.
-            if not defaultPageObj._Pill then
-                AddPageSwitcherButton(defaultPageObj)
-            end
-
             local newPageObj = BuildPage(
                 pageConfig.Title or ("Page " .. tostring(#Tab.Pages + 1))
             )
 
-            table.insert(Tab.Pages, newPageObj)
-            AddPageSwitcherButton(newPageObj)
-
-            function newPageObj:Select()
-                for _, other in ipairs(Tab.Pages) do
-                    local active = other == newPageObj
-
-                    other.Frame.Visible = active
-
-                    if other._Pill then
-                        other._Pill.BackgroundColor3 = active
-                            and COLORS.Panel2
-                            or COLORS.Panel
-
-                        other._PillLabel.TextColor3 = active
-                            and COLORS.Text
-                            or COLORS.SubText
-                    end
-                end
-
-                Tab._ActivePage = newPageObj
-
-                if searchBox then
-                    SearchElements(searchBox.Text)
-                end
-            end
-
-            function newPageObj:CreateSection(sectionConfig)
-                return Tab:CreateSection(sectionConfig, newPageObj)
-            end
+            RegisterPage(newPageObj)
 
             return newPageObj
         end
+
 
         function Tab:Select()
             for _, other in ipairs(Window.Tabs) do
