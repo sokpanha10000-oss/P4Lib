@@ -496,6 +496,72 @@ local function Icon(parent, icon, size, position, zIndex, themed)
     return image
 end
 
+-- IconOrBadge: like Icon(), but never silently disappears. If `icon`
+-- resolves to a real glyph/image, that's used as normal. If it's an
+-- unrecognized name (e.g. "K" or "Redz" - not a real Lucide icon and
+-- not an asset id/url), a small generated logo badge is created
+-- instead: a rounded, theme-accent-colored tile with the first 1-2
+-- letters of the name. This also covers "deleted" empty icons, since
+-- an empty/nil `icon` falls back to `fallbackText` (e.g. the
+-- Title) the same way the badge would for any other unknown name.
+-- Returns the created object (ImageLabel or Frame) plus a boolean
+-- (true if it's a generated badge, false if it's a resolved icon).
+local function IconOrBadge(parent, icon, size, position, zIndex, fallbackText)
+    local resolved = Icon(parent, icon, size, position, zIndex)
+
+    if resolved then
+        return resolved, false
+    end
+
+    local letters = tostring(
+        (icon ~= nil and icon ~= "" and icon)
+            or fallbackText
+            or "?"
+    )
+
+    -- Keep up to 2 letters for short names/initials, 1 for anything
+    -- longer, so it reads like a compact logo rather than a wall of text.
+    local badgeText
+    if #letters <= 2 then
+        badgeText = letters:upper()
+    else
+        badgeText = letters:sub(1, 1):upper()
+    end
+
+    local badge = New("Frame", {
+        Parent = parent,
+        Position = position,
+        Size = UDim2.fromOffset(size, size),
+        BackgroundColor3 = CurrentTheme().Accent,
+        BorderSizePixel = 0,
+        ZIndex = zIndex or 10,
+    })
+
+    AddCorner(badge, math.max(4, math.floor(size / 4)))
+
+    local label = New("TextLabel", {
+        Parent = badge,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = badgeText,
+        TextColor3 = COLORS.White,
+        TextSize = math.max(9, math.floor(size * 0.42)),
+        Font = Enum.Font.GothamBold,
+        TextScaled = false,
+        ZIndex = (zIndex or 10) + 1,
+    })
+
+    RegisterTheme(function(_, colors)
+        if badge and badge.Parent then
+            badge.BackgroundColor3 = colors.Accent
+        end
+    end)
+
+    badge.Label = label
+
+    return badge, true
+end
+
 --========================================================
 -- VISUAL DESIGN HELPERS
 --========================================================
@@ -1774,29 +1840,14 @@ function DarkyUI:CreateWindow(config)
         1
     )
 
-    local floatingIcon = Icon(
+    local floatingIcon = IconOrBadge(
         floating,
         Window.Image or "layout-dashboard",
         24,
         UDim2.new(0.5, -12, 0.5, -12),
-        501
+        501,
+        Window.Title
     )
-
-    if not floatingIcon then
-        New(
-            "TextLabel",
-            {
-                Parent = floating,
-                BackgroundTransparency = 1,
-                Size = UDim2.fromScale(1, 1),
-                Text = string.sub(Window.Title, 1, 1):upper(),
-                TextColor3 = COLORS.Text,
-                TextSize = 20,
-                Font = Enum.Font.GothamBold,
-                ZIndex = 501,
-            }
-        )
-    end
 
     --====================================================
     -- MAIN
@@ -1964,29 +2015,14 @@ function DarkyUI:CreateWindow(config)
         }
     )
 
-    local windowIcon = Icon(
+    local windowIcon = IconOrBadge(
         iconHolder,
         Window.Image or "layout-dashboard",
         24,
         UDim2.new(0.5, -12, 0.5, -12),
-        22
+        22,
+        Window.Title
     )
-
-    if not windowIcon then
-        New(
-            "TextLabel",
-            {
-                Parent = iconHolder,
-                BackgroundTransparency = 1,
-                Size = UDim2.fromScale(1, 1),
-                Text = string.sub(Window.Title, 1, 1):upper(),
-                TextColor3 = COLORS.Text,
-                TextSize = 19,
-                Font = Enum.Font.GothamBold,
-                ZIndex = 22,
-            }
-        )
-    end
 
     --====================================================
     -- TITLE + SUBTITLE
@@ -2688,21 +2724,37 @@ function DarkyUI:CreateWindow(config)
         self.Image = value
         DarkyUI.CurrentImage = value
 
-        local asset, isGlyph = ResolveIcon(value)
+        -- Deleting the icon (nil/"") reverts cleanly to the default
+        -- glyph instead of leaving the previous image stuck on screen.
+        -- Rebuilt (not mutated) so it correctly swaps between a real
+        -- resolved icon and a generated letter-badge either direction.
+        local displayValue = value or "layout-dashboard"
 
-        if asset then
-            local tint = isGlyph and COLORS.Text or COLORS.White
-
-            if windowIcon then
-                windowIcon.Image = asset
-                windowIcon.ImageColor3 = tint
-            end
-
-            if floatingIcon then
-                floatingIcon.Image = asset
-                floatingIcon.ImageColor3 = tint
-            end
+        if windowIcon then
+            windowIcon:Destroy()
         end
+
+        windowIcon = IconOrBadge(
+            iconHolder,
+            displayValue,
+            24,
+            UDim2.new(0.5, -12, 0.5, -12),
+            22,
+            self.Title
+        )
+
+        if floatingIcon then
+            floatingIcon:Destroy()
+        end
+
+        floatingIcon = IconOrBadge(
+            floating,
+            displayValue,
+            24,
+            UDim2.new(0.5, -12, 0.5, -12),
+            501,
+            self.Title
+        )
     end
 
     function Window:SetVisible(value)
@@ -2872,29 +2924,14 @@ function DarkyUI:CreateWindow(config)
             }
         )
 
-        local tabIcon = Icon(
+        local tabIcon = IconOrBadge(
             tabIconHolder,
             Tab.Icon,
             17,
             UDim2.new(0.5, -8, 0.5, -8),
-            17
+            17,
+            Tab.Title
         )
-
-        if not tabIcon then
-            New(
-                "TextLabel",
-                {
-                    Parent = tabIconHolder,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.fromScale(1, 1),
-                    Text = string.sub(Tab.Title, 1, 1):upper(),
-                    TextColor3 = COLORS.Text,
-                    TextSize = 12,
-                    Font = Enum.Font.GothamBold,
-                    ZIndex = 17,
-                }
-            )
-        end
 
         local tabText = New(
             "TextLabel",
@@ -2913,53 +2950,397 @@ function DarkyUI:CreateWindow(config)
             }
         )
 
-        local page = New(
-            "ScrollingFrame",
+        --================================================
+        -- PAGE SCAFFOLD (reusable: default page + Tab:CreatePage)
+        --================================================
+        -- Builds one scrollable page with the two-column section
+        -- layout described above. Returns a page object carrying its
+        -- own independent column/section state, so a Tab can have
+        -- multiple pages (via Tab:CreatePage) that each lay out their
+        -- sections separately without interfering with one another.
+
+        local pageCount = 0
+
+        local function BuildPage(pageTitle)
+            pageCount = pageCount + 1
+
+            local pageFrame = New(
+                "ScrollingFrame",
+                {
+                    Parent = content,
+                    Name = "Page_"
+                        .. tostring(#Window.Tabs + 1)
+                        .. "_"
+                        .. tostring(pageCount),
+                    Size = UDim2.fromScale(1, 1),
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    ScrollBarThickness = 4,
+                    ScrollBarImageColor3 = COLORS.Border,
+                    CanvasSize = UDim2.new(),
+                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                    ScrollingDirection = Enum.ScrollingDirection.Y,
+                    Visible = false,
+                    ZIndex = 12,
+                }
+            )
+
+            Padding(
+                pageFrame,
+                0,
+                5,
+                0,
+                8
+            )
+
+            -- Sections are placed into whichever column comes up
+            -- next in the left/right alternation, so the page fills
+            -- space efficiently (two compact sections share a row)
+            -- while each section still auto-sizes to its own content
+            -- and new sections keep stacking below. On a narrow page,
+            -- both columns still lay out side by side at half width
+            -- each; if only one column ever gets content, its sibling
+            -- automatically expands to fill the row (see below).
+
+            local columnsRow = New(
+                "Frame",
+                {
+                    Parent = pageFrame,
+                    Name = "ColumnsRow",
+                    Size = UDim2.new(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    LayoutOrder = 1,
+                    ZIndex = 12,
+                }
+            )
+
+            New(
+                "UIListLayout",
+                {
+                    Parent = pageFrame,
+                    FillDirection = Enum.FillDirection.Vertical,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 7),
+                }
+            )
+
+            local COLUMN_GAP = 7
+
+            local function MakeColumn(order)
+                local column = New(
+                    "Frame",
+                    {
+                        Parent = columnsRow,
+                        Name = "Column_" .. tostring(order),
+                        Position = UDim2.new(
+                            (order - 1) * 0.5,
+                            (order - 1) * (COLUMN_GAP / 2),
+                            0,
+                            0
+                        ),
+                        Size = UDim2.new(
+                            0.5,
+                            -(COLUMN_GAP / 2),
+                            0,
+                            0
+                        ),
+                        AutomaticSize = Enum.AutomaticSize.Y,
+                        BackgroundTransparency = 1,
+                        BorderSizePixel = 0,
+                        ZIndex = 12,
+                    }
+                )
+
+                local layout = New(
+                    "UIListLayout",
+                    {
+                        Parent = column,
+                        FillDirection = Enum.FillDirection.Vertical,
+                        SortOrder = Enum.SortOrder.LayoutOrder,
+                        Padding = UDim.new(0, 7),
+                    }
+                )
+
+                return column, layout
+            end
+
+            local columnLeft, layoutLeft = MakeColumn(1)
+            local columnRight, layoutRight = MakeColumn(2)
+
+            -- If a column ends up with nothing in it (an odd trailing
+            -- section, or only one section ever created), let its
+            -- sibling expand to fill the whole row instead of sitting
+            -- stuck at half-width with empty space next to it.
+            local function RebalanceWidths()
+                local leftHasContent =
+                    #columnLeft:GetChildren() > 1
+
+                local rightHasContent =
+                    #columnRight:GetChildren() > 1
+
+                if leftHasContent and not rightHasContent then
+                    columnLeft.Size = UDim2.new(1, 0, 0, 0)
+                    columnRight.Size = UDim2.new(0, 0, 0, 0)
+                elseif rightHasContent and not leftHasContent then
+                    columnLeft.Size = UDim2.new(0, 0, 0, 0)
+                    columnRight.Size = UDim2.new(1, 0, 0, 0)
+                else
+                    columnLeft.Size = UDim2.new(
+                        0.5,
+                        -(COLUMN_GAP / 2),
+                        0,
+                        0
+                    )
+                    columnRight.Size = UDim2.new(
+                        0.5,
+                        -(COLUMN_GAP / 2),
+                        0,
+                        0
+                    )
+                end
+            end
+
+            columnLeft.ChildAdded:Connect(RebalanceWidths)
+            columnLeft.ChildRemoved:Connect(RebalanceWidths)
+            columnRight.ChildAdded:Connect(RebalanceWidths)
+            columnRight.ChildRemoved:Connect(RebalanceWidths)
+
+            local pageObj = {
+                Title = pageTitle or "Page",
+                Frame = pageFrame,
+                Sections = {},
+                _ColumnToggle = false,
+                _NextOrder = 1,
+                _Columns = { columnLeft, columnRight },
+                _RebalanceWidths = RebalanceWidths,
+                _ColumnsRow = columnsRow,
+            }
+
+            -- Sections pair up left/right in the order they're
+            -- created: 1st -> left, 2nd -> right (same row), 3rd ->
+            -- left (new row below), 4th -> right, and so on. Each
+            -- section still auto-sizes to its own content
+            -- independently of its row partner.
+            function pageObj._NextColumn()
+                pageObj._ColumnToggle = not pageObj._ColumnToggle
+
+                if pageObj._ColumnToggle then
+                    return columnLeft, layoutLeft, 1
+                end
+
+                return columnRight, layoutRight, 2
+            end
+
+            return pageObj
+        end
+
+        local defaultPageObj = BuildPage("Main")
+        local page = defaultPageObj.Frame
+
+        Tab.Button = tabButton
+        Tab.Page = page
+        Tab.Pages = { defaultPageObj }
+        Tab._DefaultPage = defaultPageObj
+        Tab._ActivePage = defaultPageObj
+        Tab._Bar = selectedBar
+        Tab._Text = tabText
+
+        --================================================
+        -- PAGE SWITCHER (shown only once a 2nd page exists)
+        --================================================
+        -- Each tab can hold multiple pages (Tab:CreatePage /
+        -- Section:CreatePage). Only one page is visible within the
+        -- tab at a time; this small pill row lets the user switch
+        -- between them, similar in spirit to the tab list itself but
+        -- scoped to the current tab's own pages.
+
+        local pageSwitcher = New(
+            "Frame",
             {
                 Parent = content,
-                Name = "Page_" .. tostring(#Window.Tabs + 1),
-                Size = UDim2.fromScale(1, 1),
+                Name = "PageSwitcher_" .. tostring(#Window.Tabs + 1),
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(1, 0, 0, 26),
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
-                ScrollBarThickness = 4,
-                ScrollBarImageColor3 = COLORS.Border,
-                CanvasSize = UDim2.new(),
-                AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                ScrollingDirection = Enum.ScrollingDirection.Y,
                 Visible = false,
                 ZIndex = 12,
             }
         )
 
-        Padding(
-            page,
-            0,
-            5,
-            0,
-            8
-        )
-
         New(
             "UIListLayout",
             {
-                Parent = page,
-                FillDirection = Enum.FillDirection.Vertical,
+                Parent = pageSwitcher,
+                FillDirection = Enum.FillDirection.Horizontal,
                 SortOrder = Enum.SortOrder.LayoutOrder,
-                Padding = UDim.new(0, 7),
+                Padding = UDim.new(0, 6),
             }
         )
 
-        Tab.Button = tabButton
-        Tab.Page = page
-        Tab._Bar = selectedBar
-        Tab._Text = tabText
+        Tab._PageSwitcher = pageSwitcher
+
+        -- Reserve a strip at the top of `content` for the switcher
+        -- bar, only for tabs that actually end up with multiple
+        -- pages. Runs once, the moment the 2nd page is added.
+        local function ReserveSwitcherSpace()
+            for _, pageObj in ipairs(Tab.Pages) do
+                pageObj.Frame.Position = UDim2.fromOffset(0, 32)
+                pageObj.Frame.Size = UDim2.new(1, 0, 1, -32)
+            end
+        end
+
+        local function AddPageSwitcherButton(pageObj)
+            local pillWidth = math.clamp(
+                (#pageObj.Title * 7) + 24,
+                50,
+                160
+            )
+
+            local pill = New(
+                "TextButton",
+                {
+                    Parent = pageSwitcher,
+                    Size = UDim2.fromOffset(pillWidth, 24),
+                    BackgroundColor3 = COLORS.Panel,
+                    BorderSizePixel = 0,
+                    AutoButtonColor = false,
+                    Text = "",
+                    LayoutOrder = #Tab.Pages,
+                    ZIndex = 12,
+                }
+            )
+
+            AddCorner(pill, 7)
+
+            Stroke(pill, COLORS.Border, 1)
+
+            local pillLabel = New(
+                "TextLabel",
+                {
+                    Parent = pill,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    Text = pageObj.Title,
+                    TextColor3 = COLORS.SubText,
+                    TextSize = 10,
+                    Font = Enum.Font.GothamMedium,
+                    ZIndex = 13,
+                }
+            )
+
+            pageObj._Pill = pill
+            pageObj._PillLabel = pillLabel
+
+            pill.MouseButton1Click:Connect(function()
+                pageObj:Select()
+            end)
+
+            -- Only reveal the switcher bar once there's more than one
+            -- page to switch between; a tab with a single (default)
+            -- page keeps its old, uncluttered look.
+            if #Tab.Pages > 1 then
+                pageSwitcher.Visible = true
+                ReserveSwitcherSpace()
+            end
+        end
+
+        function defaultPageObj:Select()
+            for _, other in ipairs(Tab.Pages) do
+                local active = other == defaultPageObj
+
+                other.Frame.Visible = active
+
+                if other._Pill then
+                    other._Pill.BackgroundColor3 = active
+                        and COLORS.Panel2
+                        or COLORS.Panel
+
+                    other._PillLabel.TextColor3 = active
+                        and COLORS.Text
+                        or COLORS.SubText
+                end
+            end
+
+            Tab._ActivePage = defaultPageObj
+
+            if searchBox then
+                SearchElements(searchBox.Text)
+            end
+        end
+
+        --================================================
+        -- CREATE PAGE
+        --================================================
+
+        function Tab:CreatePage(pageConfig)
+            pageConfig = pageConfig or {}
+
+            -- The default page only gets a switcher pill once we know
+            -- for sure a 2nd page exists - otherwise a single-page tab
+            -- would show a pointless one-pill bar.
+            if not defaultPageObj._Pill then
+                AddPageSwitcherButton(defaultPageObj)
+            end
+
+            local newPageObj = BuildPage(
+                pageConfig.Title or ("Page " .. tostring(#Tab.Pages + 1))
+            )
+
+            table.insert(Tab.Pages, newPageObj)
+            AddPageSwitcherButton(newPageObj)
+
+            function newPageObj:Select()
+                for _, other in ipairs(Tab.Pages) do
+                    local active = other == newPageObj
+
+                    other.Frame.Visible = active
+
+                    if other._Pill then
+                        other._Pill.BackgroundColor3 = active
+                            and COLORS.Panel2
+                            or COLORS.Panel
+
+                        other._PillLabel.TextColor3 = active
+                            and COLORS.Text
+                            or COLORS.SubText
+                    end
+                end
+
+                Tab._ActivePage = newPageObj
+
+                if searchBox then
+                    SearchElements(searchBox.Text)
+                end
+            end
+
+            function newPageObj:CreateSection(sectionConfig)
+                return Tab:CreateSection(sectionConfig, newPageObj)
+            end
+
+            return newPageObj
+        end
 
         function Tab:Select()
             for _, other in ipairs(Window.Tabs) do
                 local active =
                     other == Tab
 
-                other.Page.Visible = active
+                -- Show whichever page was last active within that
+                -- tab (defaults to the tab's default/"Main" page),
+                -- not always the same first page.
+                for _, otherPage in ipairs(other.Pages) do
+                    otherPage.Frame.Visible =
+                        active and otherPage == other._ActivePage
+                end
+
+                if other._PageSwitcher then
+                    other._PageSwitcher.Visible =
+                        active and #other.Pages > 1
+                end
+
                 other.Selected = active
                 other._Bar.Visible = active
 
@@ -3011,27 +3392,39 @@ function DarkyUI:CreateWindow(config)
         -- CREATE SECTION
         --================================================
 
-        function Tab:CreateSection(sectionConfig)
+        function Tab:CreateSection(sectionConfig, targetPage)
             sectionConfig = sectionConfig or {}
+            targetPage = targetPage or Tab._DefaultPage
 
             local Section = {
                 Title = sectionConfig.Title or "Section",
             }
 
-            -- No Size property. Fully automatic.
+            local targetColumn, _, columnIndex =
+                targetPage._NextColumn()
+
+            targetPage._NextOrder = targetPage._NextOrder + 1
+
+            -- No Size property. Fully automatic; width is always the
+            -- full width of whichever column it lands in, and height
+            -- follows its own content regardless of the other column.
             local sectionFrame = New(
                 "Frame",
                 {
-                    Parent = page,
+                    Parent = targetColumn,
                     Name = "Section_" .. Section.Title,
-                    Size = UDim2.new(1, -2, 0, 0),
+                    Size = UDim2.new(1, 0, 0, 0),
                     AutomaticSize = Enum.AutomaticSize.Y,
                     BackgroundColor3 = COLORS.Background2,
                     BorderSizePixel = 0,
-                    LayoutOrder = #Tab.Sections + 1,
+                    LayoutOrder = targetPage._NextOrder,
                     ZIndex = 13,
                 }
             )
+
+            Section.Column = columnIndex
+            Section.Page = targetPage
+            Section._Tab = Tab
 
             AddCorner(sectionFrame, 10)
 
@@ -3097,6 +3490,11 @@ function DarkyUI:CreateWindow(config)
 
             table.insert(
                 Tab.Sections,
+                Section
+            )
+
+            table.insert(
+                targetPage.Sections,
                 Section
             )
 
@@ -4736,6 +5134,19 @@ function DarkyUI:CreateWindow(config)
                 )
 
                 return object
+            end
+
+            --============================================
+            -- CREATE PAGE (alias)
+            --============================================
+            -- Section1:CreatePage({ Title = "Movement" }) works the
+            -- same as Tab:CreatePage({ Title = "Movement" }) - pages
+            -- belong to the Tab, not any one section, but this alias
+            -- lets it be called from a Section reference too since
+            -- that's how it reads most naturally when scripting.
+
+            function Section:CreatePage(pageConfig)
+                return Tab:CreatePage(pageConfig)
             end
 
             return Section
