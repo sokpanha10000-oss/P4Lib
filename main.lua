@@ -121,6 +121,18 @@ local MED = TweenInfo.new(
     Enum.EasingDirection.Out
 )
 
+-- Used only for the PageTab swipe settle: an exaggerated springy
+-- overshoot, distinct on purpose from the flat MED easing used for
+-- the plain top-level tab list and everything else in the library.
+local SWING = TweenInfo.new(
+    0.38,
+    Enum.EasingStyle.Back,
+    Enum.EasingDirection.Out,
+    0,
+    false,
+    0
+)
+
 --========================================================
 -- HELPERS
 --========================================================
@@ -3335,7 +3347,7 @@ function DarkyUI:CreateWindow(config)
 
             Tween(
                 fromPage.Frame,
-                MED,
+                SWING,
                 {
                     Position = UDim2.fromOffset(
                         -direction * width,
@@ -3346,7 +3358,7 @@ function DarkyUI:CreateWindow(config)
 
             Tween(
                 toPage.Frame,
-                MED,
+                SWING,
                 {
                     Position = UDim2.fromOffset(
                         0,
@@ -3357,7 +3369,7 @@ function DarkyUI:CreateWindow(config)
 
             Tab._ActivePage = toPage
 
-            task.delay(MED.Time, function()
+            task.delay(SWING.Time, function()
                 fromPage.Frame.Visible = false
                 fromPage.Frame.Position = UDim2.fromOffset(
                     0,
@@ -3408,7 +3420,7 @@ function DarkyUI:CreateWindow(config)
 
                 Tween(
                     dragFromPage.Frame,
-                    FAST,
+                    SWING,
                     {
                         Position = UDim2.fromOffset(
                             0,
@@ -3550,7 +3562,22 @@ function DarkyUI:CreateWindow(config)
             end
         end
 
-        RegisterPage(defaultPageObj)
+        -- The default/"Main" page is only registered as an actual
+        -- page (visible in Tab.Pages, eligible to show in the slide
+        -- bar) once it's actually used - either a section lands on
+        -- it directly, or CreatePage is called and we need to know
+        -- whether Main already holds anything. A tab that only ever
+        -- calls Tab:CreatePage never gets a phantom empty "Main" page.
+        local defaultPageRegistered = false
+
+        local function EnsureDefaultPageRegistered()
+            if defaultPageRegistered then
+                return
+            end
+
+            defaultPageRegistered = true
+            RegisterPage(defaultPageObj)
+        end
 
         --================================================
         -- CREATE PAGE
@@ -3558,6 +3585,15 @@ function DarkyUI:CreateWindow(config)
 
         function Tab:CreatePage(pageConfig)
             pageConfig = pageConfig or {}
+
+            -- If sections were already created directly on the tab
+            -- (landing on the default page), that page has real
+            -- content and deserves a slot in the slider too. If not,
+            -- it stays hidden/unregistered rather than showing up as
+            -- an empty, unwanted "Main" page.
+            if #defaultPageObj.Sections > 0 then
+                EnsureDefaultPageRegistered()
+            end
 
             local newPageObj = BuildPage(
                 pageConfig.Title or ("Page " .. tostring(#Tab.Pages + 1)),
@@ -3664,6 +3700,10 @@ function DarkyUI:CreateWindow(config)
             sectionConfig = sectionConfig or {}
             targetPage = targetPage or Tab._DefaultPage
 
+            if targetPage == defaultPageObj then
+                EnsureDefaultPageRegistered()
+            end
+
             local Section = {
                 Title = sectionConfig.Title or "Section",
             }
@@ -3693,6 +3733,7 @@ function DarkyUI:CreateWindow(config)
             Section.Column = columnIndex
             Section.Page = targetPage
             Section._Tab = Tab
+            Section.Icon = sectionConfig.Icon
 
             AddCorner(sectionFrame, 10)
 
@@ -3712,12 +3753,30 @@ function DarkyUI:CreateWindow(config)
 
             AddSectionAccent(sectionFrame)
 
+            local hasSectionIcon = Section.Icon ~= nil
+                and Section.Icon ~= ""
+
+            if hasSectionIcon then
+                Section._IconObject = IconOrBadge(
+                    sectionFrame,
+                    Section.Icon,
+                    14,
+                    UDim2.fromOffset(6, 3),
+                    16,
+                    Section.Title
+                )
+            end
+
             New(
                 "TextLabel",
                 {
                     Parent = sectionFrame,
-                    Position = UDim2.fromOffset(6, 0),
-                    Size = UDim2.new(1, -6, 0, 20),
+                    Position = hasSectionIcon
+                        and UDim2.fromOffset(24, 0)
+                        or UDim2.fromOffset(6, 0),
+                    Size = hasSectionIcon
+                        and UDim2.new(1, -24, 0, 20)
+                        or UDim2.new(1, -6, 0, 20),
                     BackgroundTransparency = 1,
                     Text = Section.Title,
                     TextColor3 = COLORS.Text,
