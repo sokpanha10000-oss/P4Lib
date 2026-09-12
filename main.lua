@@ -33,6 +33,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local ContentProvider = game:GetService("ContentProvider")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 --========================================================
@@ -108,6 +109,417 @@ DarkyUI._Window = nil
 DarkyUI._KeySystem = nil
 DarkyUI._KeyPassed = false
 DarkyUI._ThemeObjects = {}
+
+--========================================================
+-- FLAG REGISTRY
+--========================================================
+-- Any element created with a Flag in its config (e.g.
+-- Section:CreateToggle({ Flag = "MyToggle", ... })) registers itself
+-- here automatically, keyed by that flag string. This is what lets
+-- SaveManager save/restore every element's value generically without
+-- each element type needing its own bespoke save logic.
+
+DarkyUI._Flags = {}
+
+local function RegisterFlag(flag, object)
+    if typeof(flag) ~= "string"
+        or flag == "" then
+        return
+    end
+
+    DarkyUI._Flags[flag] = object
+end
+
+--========================================================
+-- FILE I/O SAFETY HELPERS
+--========================================================
+-- writefile/readfile/isfile/listfiles/makefolder/isfolder/delfile are
+-- executor-only globals, not guaranteed to exist. Every call is
+-- guarded with typeof(...) ~= "function" and wrapped in pcall, same
+-- pattern the KeySystem's SaveKey/ReadKey already use above.
+
+local function HasFileAPI()
+    return typeof(writefile) == "function"
+        and typeof(readfile) == "function"
+        and typeof(isfile) == "function"
+        and typeof(makefolder) == "function"
+        and typeof(isfolder) == "function"
+end
+
+local function EnsureFolder(path)
+    if typeof(isfolder) ~= "function"
+        or typeof(makefolder) ~= "function" then
+        return false
+    end
+
+    local ok = pcall(function()
+        if not isfolder(path) then
+            makefolder(path)
+        end
+    end)
+
+    return ok
+end
+
+local function WriteJSON(path, data)
+    if typeof(writefile) ~= "function" then
+        return false
+    end
+
+    local ok = pcall(function()
+        writefile(path, HttpService:JSONEncode(data))
+    end)
+
+    return ok
+end
+
+local function ReadJSON(path)
+    if typeof(isfile) ~= "function"
+        or typeof(readfile) ~= "function" then
+        return nil
+    end
+
+    local exists = false
+
+    pcall(function()
+        exists = isfile(path)
+    end)
+
+    if not exists then
+        return nil
+    end
+
+    local result
+
+    pcall(function()
+        local raw = readfile(path)
+        result = HttpService:JSONDecode(raw)
+    end)
+
+    return result
+end
+
+local function DeleteFile(path)
+    if typeof(delfile) ~= "function"
+        or typeof(isfile) ~= "function" then
+        return false
+    end
+
+    local ok = pcall(function()
+        if isfile(path) then
+            delfile(path)
+        end
+    end)
+
+    return ok
+end
+
+local function ListConfigNames(folder)
+    local names = {}
+
+    if typeof(listfiles) ~= "function"
+        or typeof(isfolder) ~= "function" then
+        return names
+    end
+
+    local exists = false
+
+    pcall(function()
+        exists = isfolder(folder)
+    end)
+
+    if not exists then
+        return names
+    end
+
+    pcall(function()
+        for _, filePath in ipairs(listfiles(folder)) do
+            local name = filePath:match("([^\\/]+)%.json$")
+
+            if name then
+                table.insert(names, name)
+            end
+        end
+    end)
+
+    table.sort(names)
+
+    return names
+end
+
+--========================================================
+-- SAVE MANAGER
+--========================================================
+-- Persists the value of every Flag-tagged element (toggles, sliders,
+-- inputs, dropdowns) plus the active theme, to a JSON file the user
+-- names, and restores them all on load. Must be usable before
+-- CreateWindow, since scripts typically set it up first:
+--
+--   local SaveManager = DarkyUI.SaveManager
+--   SaveManager:SetFolder("MyHub")
+--   -- ... CreateWindow, tabs, sections, elements with Flags ...
+--   SaveManager:BuildConfigSection(Tab)
+--   SaveManager:LoadAutoloadConfig()
+
+local SaveManager = {
+    Folder = "DarkyUI",
+    IgnoreThemeSettings = false,
+    IgnoredFlags = {},
+}
+
+function SaveManager:SetFolder(folderName)
+    if typeof(folderName) == "string"
+        and folderName ~= "" then
+        self.Folder = folderName
+    end
+
+    return self
+end
+
+-- Compatibility no-op: some scripts ported from other UI libraries
+-- call SaveManager:SetLibrary(Library) to tell it which flag table to
+-- read. DarkyUI's flags always live on DarkyUI._Flags, so there's
+-- nothing to configure, but the call is accepted harmlessly so those
+-- scripts don't error.
+function SaveManager:SetLibrary(_library)
+    return self
+end
+
+function SaveManager:IgnoreThemeSettings()
+    self.IgnoreThemeSettings = true
+    return self
+end
+
+function SaveManager:SetIgnoreIndexes(list)
+    if typeof(list) == "table" then
+        for _, flag in ipairs(list) do
+            self.IgnoredFlags[flag] = true
+        end
+    end
+
+    return self
+end
+
+function SaveManager:ConfigFolderPath()
+    return self.Folder .. "/configs"
+end
+
+function SaveManager:ConfigFilePath(name)
+    return self:ConfigFolderPath() .. "/" .. name .. ".json"
+end
+
+function SaveManager:ListConfigs()
+    return ListConfigNames(self:ConfigFolderPath())
+end
+
+function SaveManager:Save(name)
+    if typeof(name) ~= "string"
+        or name == "" then
+        return false, "Invalid config name"
+    end
+
+    if not HasFileAPI() then
+        return false, "File API unavailable"
+    end
+
+    EnsureFolder(self.Folder)
+    EnsureFolder(self:ConfigFolderPath())
+
+    local data = {
+        Flags = {},
+        Theme = not self.IgnoreThemeSettings
+            and DarkyUI.CurrentTheme
+            or nil,
+    }
+
+    for flag, object in pairs(DarkyUI._Flags) do
+        if not self.IgnoredFlags[flag]
+            and typeof(object.GetValue) == "function" then
+
+            local ok, value = pcall(object.GetValue, object)
+
+            if ok then
+                data.Flags[flag] = value
+            end
+        end
+    end
+
+    local ok = WriteJSON(
+        self:ConfigFilePath(name),
+        data
+    )
+
+    return ok, not ok and "Failed to write file" or nil
+end
+
+function SaveManager:Load(name)
+    if typeof(name) ~= "string"
+        or name == "" then
+        return false, "Invalid config name"
+    end
+
+    local data = ReadJSON(self:ConfigFilePath(name))
+
+    if not data then
+        return false, "Config not found"
+    end
+
+    if data.Theme
+        and not self.IgnoreThemeSettings
+        and typeof(DarkyUI.SetTheme) == "function" then
+
+        pcall(DarkyUI.SetTheme, DarkyUI, data.Theme)
+    end
+
+    if typeof(data.Flags) == "table" then
+        for flag, value in pairs(data.Flags) do
+            local object = DarkyUI._Flags[flag]
+
+            if object
+                and not self.IgnoredFlags[flag]
+                and typeof(object.SetValue) == "function" then
+
+                pcall(object.SetValue, object, value, false)
+            end
+        end
+    end
+
+    return true
+end
+
+function SaveManager:Delete(name)
+    return DeleteFile(self:ConfigFilePath(name))
+end
+
+function SaveManager:SetAutoloadConfig(name)
+    EnsureFolder(self.Folder)
+
+    WriteJSON(
+        self.Folder .. "/autoload.json",
+        { Config = name }
+    )
+
+    return self
+end
+
+function SaveManager:LoadAutoloadConfig()
+    local data = ReadJSON(self.Folder .. "/autoload.json")
+
+    if data and typeof(data.Config) == "string" then
+        return self:Load(data.Config)
+    end
+
+    return false, "No autoload config set"
+end
+
+DarkyUI.SaveManager = SaveManager
+
+--========================================================
+-- INTERFACE MANAGER
+--========================================================
+-- Persists interface-level preferences (currently: the active theme)
+-- separately from SaveManager's per-config saves, since the theme is
+-- usually something the user wants to stick permanently rather than
+-- bundled inside a specific loadout config.
+
+local InterfaceManager = {
+    Folder = "DarkyUI",
+}
+
+function InterfaceManager:SetFolder(folderName)
+    if typeof(folderName) == "string"
+        and folderName ~= "" then
+        self.Folder = folderName
+    end
+
+    return self
+end
+
+function InterfaceManager:SetLibrary(_library)
+    return self
+end
+
+function InterfaceManager:FilePath()
+    return self.Folder .. "/interface.json"
+end
+
+function InterfaceManager:SaveSettings()
+    EnsureFolder(self.Folder)
+
+    return WriteJSON(
+        self:FilePath(),
+        { Theme = DarkyUI.CurrentTheme }
+    )
+end
+
+function InterfaceManager:LoadSettings()
+    local data = ReadJSON(self:FilePath())
+
+    if data
+        and data.Theme
+        and typeof(DarkyUI.SetTheme) == "function" then
+
+        pcall(DarkyUI.SetTheme, DarkyUI, data.Theme)
+
+        return true
+    end
+
+    return false
+end
+
+DarkyUI.InterfaceManager = InterfaceManager
+
+--========================================================
+-- FLOATING BUTTON MANAGER
+--========================================================
+-- Persists the floating minimize button's last screen position so it
+-- reopens in the same spot next session instead of resetting to the
+-- default corner every time.
+
+local FloatingButtonManager = {
+    Folder = "DarkyUI",
+}
+
+function FloatingButtonManager:SetFolder(folderName)
+    if typeof(folderName) == "string"
+        and folderName ~= "" then
+        self.Folder = folderName
+    end
+
+    return self
+end
+
+function FloatingButtonManager:SetLibrary(_library)
+    return self
+end
+
+function FloatingButtonManager:FilePath()
+    return self.Folder .. "/floating_button.json"
+end
+
+function FloatingButtonManager:SavePosition(x, y)
+    EnsureFolder(self.Folder)
+
+    return WriteJSON(
+        self:FilePath(),
+        { X = x, Y = y }
+    )
+end
+
+function FloatingButtonManager:LoadPosition()
+    local data = ReadJSON(self:FilePath())
+
+    if data
+        and typeof(data.X) == "number"
+        and typeof(data.Y) == "number" then
+
+        return data.X, data.Y
+    end
+
+    return nil, nil
+end
+
+DarkyUI.FloatingButtonManager = FloatingButtonManager
 
 local FAST = TweenInfo.new(
     0.14,
@@ -1844,6 +2256,26 @@ function DarkyUI:CreateWindow(config)
         }
     )
 
+    -- Restore the floating button's last saved screen position, if
+    -- FloatingButtonManager has one on file for this folder. Falls
+    -- back to the default left-center spot above if there's nothing
+    -- saved yet (first run, or file API unavailable). Keeps the
+    -- original X/Y scale components (0, 0.5) so it stays anchored the
+    -- same way on screen resize - only the offsets are restored.
+    do
+        local savedX, savedY =
+            DarkyUI.FloatingButtonManager:LoadPosition()
+
+        if savedX and savedY then
+            floating.Position = UDim2.new(
+                0,
+                savedX,
+                0.5,
+                savedY
+            )
+        end
+    end
+
     AddCorner(floating, 11)
 
     Stroke(
@@ -2851,6 +3283,14 @@ function DarkyUI:CreateWindow(config)
 
                         if not moved then
                             Window:Restore()
+                        else
+                            -- Persist wherever it was actually
+                            -- dropped, so it reopens in the same
+                            -- spot next session.
+                            DarkyUI.FloatingButtonManager:SavePosition(
+                                floating.Position.X.Offset,
+                                floating.Position.Y.Offset
+                            )
                         end
                     end
                 end)
@@ -3974,6 +4414,18 @@ function DarkyUI:CreateWindow(config)
                 EnsureDefaultPageRegistered()
             end
 
+            -- Belt-and-suspenders: whatever page this section is
+            -- about to land on, make sure its Frame.Visible actually
+            -- matches reality right now - it should be showing if
+            -- it's this tab's current page AND this tab is selected.
+            -- Sections/elements are meant to be visible immediately
+            -- with no PageTab required at all; PageTab only exists
+            -- for people who explicitly want extra pages within the
+            -- same tab, it's never a requirement to see anything.
+            if targetPage == Tab._ActivePage then
+                targetPage.Frame.Visible = Tab.Selected == true
+            end
+
             local Section = {
                 Title = sectionConfig.Title or "Section",
             }
@@ -4451,6 +4903,8 @@ function DarkyUI:CreateWindow(config)
                     return state
                 end
 
+                RegisterFlag(toggleConfig.Flag, object)
+
                 switch.MouseButton1Click:Connect(function()
                     object:SetValue(
                         not state,
@@ -4798,6 +5252,8 @@ function DarkyUI:CreateWindow(config)
                     return current
                 end
 
+                RegisterFlag(sliderConfig.Flag, object)
+
                 function object:SetRange(minimumValue, maximumValue, default)
                     minimum = tonumber(minimumValue)
                         or minimum
@@ -4972,6 +5428,8 @@ function DarkyUI:CreateWindow(config)
                 function object:SetValue(value)
                     textBox.Text = tostring(value or "")
                 end
+
+                RegisterFlag(inputConfig.Flag, object)
 
                 Register(
                     root,
@@ -5724,6 +6182,8 @@ function DarkyUI:CreateWindow(config)
                     return multi
                 end
 
+                RegisterFlag(dropdownConfig.Flag, object)
+
                 Register(
                     root,
                     title,
@@ -5795,6 +6255,156 @@ function DarkyUI:CreateWindow(config)
     end
 
     return Window
+end
+
+--========================================================
+-- SAVE MANAGER / INTERFACE MANAGER UI BUILDERS
+--========================================================
+-- Added down here (rather than next to the rest of SaveManager /
+-- InterfaceManager above) since they need New/AddCorner/Stroke/Icon,
+-- which aren't defined yet that early in the file.
+
+function SaveManager:BuildConfigSection(Tab)
+    if not Tab or typeof(Tab.CreateSection) ~= "function" then
+        return nil
+    end
+
+    local Section = Tab:CreateSection({
+        Title = "Config",
+        Icon = "save",
+    })
+
+    local nameValue = ""
+
+    Section:CreateInput({
+        Title = "Config name",
+        Placeholder = "MyConfig",
+        Callback = function(text)
+            nameValue = text
+        end,
+    })
+
+    local configDropdown = Section:CreateDropdown({
+        Title = "Saved configs",
+        Values = self:ListConfigs(),
+        Callback = function() end,
+    })
+
+    local function RefreshList()
+        if configDropdown
+            and typeof(configDropdown.Refresh) == "function" then
+
+            configDropdown:Refresh(self:ListConfigs())
+        end
+    end
+
+    Section:CreateButton({
+        Title = "Save",
+        Callback = function()
+            if nameValue == "" then
+                return
+            end
+
+            self:Save(nameValue)
+            RefreshList()
+        end,
+    })
+
+    Section:CreateButton({
+        Title = "Load",
+        Callback = function()
+            local target = nameValue
+
+            if (target == nil or target == "")
+                and configDropdown
+                and typeof(configDropdown.GetValue) ==
+                    "function" then
+
+                target = configDropdown:GetValue()
+            end
+
+            if target and target ~= "" then
+                self:Load(target)
+            end
+        end,
+    })
+
+    Section:CreateButton({
+        Title = "Delete",
+        Callback = function()
+            local target = nameValue
+
+            if (target == nil or target == "")
+                and configDropdown
+                and typeof(configDropdown.GetValue) ==
+                    "function" then
+
+                target = configDropdown:GetValue()
+            end
+
+            if target and target ~= "" then
+                self:Delete(target)
+                RefreshList()
+            end
+        end,
+    })
+
+    Section:CreateButton({
+        Title = "Set as autoload",
+        Callback = function()
+            local target = nameValue
+
+            if (target == nil or target == "")
+                and configDropdown
+                and typeof(configDropdown.GetValue) ==
+                    "function" then
+
+                target = configDropdown:GetValue()
+            end
+
+            if target and target ~= "" then
+                self:SetAutoloadConfig(target)
+            end
+        end,
+    })
+
+    return Section
+end
+
+function InterfaceManager:BuildInterfaceSection(Tab)
+    if not Tab or typeof(Tab.CreateSection) ~= "function" then
+        return nil
+    end
+
+    local Section = Tab:CreateSection({
+        Title = "Interface",
+        Icon = "palette",
+    })
+
+    local themeNames = {}
+
+    for name in pairs(DarkyUI.Themes) do
+        table.insert(themeNames, name)
+    end
+
+    table.sort(themeNames)
+
+    local manager = self
+
+    Section:CreateDropdown({
+        Title = "Theme",
+        Values = themeNames,
+        Value = DarkyUI.CurrentTheme,
+        Callback = function(value)
+            if typeof(DarkyUI.SetTheme) == "function" then
+                DarkyUI:SetTheme(value)
+            end
+
+            manager:SaveSettings()
+        end,
+    })
+
+    return Section
 end
 
 return DarkyUI
