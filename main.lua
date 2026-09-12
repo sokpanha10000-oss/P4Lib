@@ -3810,6 +3810,18 @@ function DarkyUI:CreateWindow(config)
 
             defaultPageRegistered = true
             RegisterPage(defaultPageObj)
+
+            -- RegisterPage never sets Frame.Visible itself (it has no
+            -- opinion on which page should be showing). If this tab
+            -- was already selected before any section ever landed on
+            -- the default page (the common case: CreateTab runs its
+            -- auto-select long before the user's script gets around
+            -- to calling CreateSection), nothing would otherwise ever
+            -- flip this page's Frame.Visible on, and it would stay
+            -- hidden forever even though it's the tab's active page.
+            if Tab.Selected then
+                defaultPageObj.Frame.Visible = true
+            end
         end
 
         --================================================
